@@ -1,0 +1,210 @@
+{
+  "name": "dan",
+  "displayName": "dan",
+  "description": "Python-based build system",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Garcia6l20/dan-vscode"
+  },
+  "publisher": "garcia6l20",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "workspaceContains:dan-build.py"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "dan.scanToolchains",
+        "title": "dan: Scan toolchains"
+      },
+      {
+        "command": "dan.configure",
+        "title": "dan: Configure"
+      },
+      {
+        "command": "dan.build",
+        "title": "dan: Build",
+        "icon": "./res/icon-build.svg"
+      },
+      {
+        "command": "dan.clean",
+        "title": "dan: Clean"
+      },
+      {
+        "command": "dan.run",
+        "title": "dan: Run"
+      },
+      {
+        "command": "dan.debug",
+        "title": "dan: Debug"
+      },
+      {
+        "command": "dan.test",
+        "title": "dan: Test"
+      },
+      {
+        "command": "dan.selectLaunchTarget",
+        "title": "dan: Select run/debug target"
+      },
+      {
+        "command": "dan.selectBuildTargets",
+        "title": "dan: Select build targets"
+      },
+      {
+        "command": "dan.selectTestTargets",
+        "title": "dan: Select test targets"
+      },
+      {
+        "command": "dan.debugBuild",
+        "title": "dan: Build (debug)"
+      }
+    ],
+    "configuration": {
+      "title": "dan build configuration",
+      "properties": {
+        "dan.buildFolder": {
+          "type": "string",
+          "default": "build",
+          "description": "Specify in which folder dan build configure and build the project."
+        },
+        "dan.configureOptions": {
+          "type": "array",
+          "default": [],
+          "description": "Specify the list of configuration options used for dan configuration."
+        },
+        "dan.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Specify the python executable to use"
+        },
+        "dan.debuggerPath": {
+          "type": "string",
+          "description": "Specify the debugger executable to use"
+        },
+        "dan.verbose": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose mode"
+        },
+        "dan.jobs": {
+          "type": "integer",
+          "description": "Max parallel jobs"
+        },
+        "dan.pythonDebugJustMyCode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use 'JustMyCode' option when debugging build scripts"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "key": "f7",
+        "when": "indanProject",
+        "command": "dan.build"
+      },
+      {
+        "key": "ctrl+shift+f7",
+        "when": "indanProject",
+        "command": "dan.debugBuild"
+      },
+      {
+        "key": "ctrl+f7",
+        "when": "indanProject",
+        "command": "dan.clean"
+      },
+      {
+        "key": "f5",
+        "command": "dan.debug",
+        "when": "!inDebugMode && indanProject"
+      },
+      {
+        "key": "shift+f5",
+        "command": "dan.run",
+        "when": "!inDebugMode && indanProject"
+      }
+    ],
+    "menus": {
+      "touchBar": [
+        {
+          "command": "dan.configure",
+          "when": "indanProject",
+          "group": "dan:build"
+        },
+        {
+          "command": "dan.selectLaunchTarget",
+          "when": "indanProject",
+          "group": "dan:build"
+        },
+        {
+          "command": "dan.selectBuildTargets",
+          "when": "indanProject",
+          "group": "dan:build"
+        },
+        {
+          "command": "dan.build",
+          "when": "indanProject",
+          "group": "dan:build"
+        },
+        {
+          "command": "dan.debugBuild",
+          "when": "indanProject",
+          "group": "dan:debug"
+        },
+        {
+          "command": "dan.run",
+          "when": "indanProject",
+          "group": "dan:run"
+        },
+        {
+          "command": "dan.debug",
+          "when": "indanProject",
+          "group": "dan:run"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "dependencies": {
+    "vscode-test-adapter-api": "^1.9.0",
+    "vscode-test-adapter-util": "^0.7.1",
+    "vscode-cpptools": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/glob": "^8.0.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.1.0",
+    "typescript": "^4.9.3",
+    "ts-loader": "^9.4.1",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.0",
+    "@vscode/test-electron": "^2.2.0"
+  },
+  "extensionDependencies": [
+    "hbenl.vscode-test-explorer",
+    "ms-vscode.cpptools"
+  ]
+}

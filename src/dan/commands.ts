@@ -60,6 +60,18 @@ export async function getTestSuites(ext: dan): Promise<TestSuiteInfo> {
 
 export async function configure(ext: dan) {
     let args = ['-B', ext.buildPath, '-S', ext.projectRoot];
+    const settings = ext.getConfig<Object>('settings');
+    if (settings !== undefined) {
+        for (const [key, value] of Object.entries(settings)) {
+            args.push('-s', `${key}=${value}`);
+        }
+    }
+    const options = ext.getConfig<Object>('options');
+    if (options !== undefined) {
+        for (const [key, value] of Object.entries(options)) {
+            args.push('-o', `${key}=${value}`);
+        }
+    }
     if (ext.getConfig<boolean>('verbose')) {
         args.push('-v');
     }

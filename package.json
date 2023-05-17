@@ -101,6 +101,16 @@
           "type": "boolean",
           "default": true,
           "description": "Use 'JustMyCode' option when debugging build scripts"
+        },
+        "dan.settings": {
+          "type": "object",
+          "default": {},
+          "description": "Workspace build settings"
+        },
+        "dan.options": {
+          "type": "object",
+          "default": {},
+          "description": "Workspace build options"
         }
       }
     },

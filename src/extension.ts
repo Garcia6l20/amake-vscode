@@ -151,6 +151,7 @@ export class dan implements vscode.Disposable {
 
 	notifyUpdated() {
 		if (this._cppToolsApi !== undefined && this._cppToolsProvider !== undefined) {
+			this._cppToolsProvider.resetCache();
 			this._cppToolsApi.didChangeCustomConfiguration(this._cppToolsProvider);
 		}
 	}

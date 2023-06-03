@@ -20,23 +20,76 @@ export class ConfigurationProvider implements cpt.CustomConfigurationProvider {
     /** Our extension ID, visible to cpptools */
     readonly extensionId = 'dan';
 
-    constructor(private ext: dan) {}
+    private configurationCache: cpt.SourceFileConfigurationItem[] = [];
 
-    private getSourcesConfiguration(uris: vscode.Uri[]) {
-        return codeCommand<cpt.SourceFileConfigurationItem[]>(this.ext, 'get-source-configuration', ...uris.map(u => u.fsPath));
-    }
+    constructor(private ext: dan) {}
 
     private getWorkspaceBrowseConfiguration() {
         return codeCommand<cpt.WorkspaceBrowseConfiguration>(this.ext, 'get-workspace-browse-configuration');
+    }
+
+
+    resetCache() {
+        this.configurationCache = [];
+    }
+
+    private async updateCache(uris: vscode.Uri[]) {
+        const configs = await codeCommand<cpt.SourceFileConfigurationItem[]>(this.ext, 'get-source-configuration', ...uris.map(u => u.fsPath));
+        for (const ii in configs) {
+            let item = this.getCacheItem(configs[ii].uri);
+            if (item === undefined) {
+                this.configurationCache.push(configs[ii]);
+            } else {
+                configs[ii] = item;
+            }
+        }
+    }
+
+    private getCacheItem(uri: vscode.Uri | string): cpt.SourceFileConfigurationItem | undefined {
+        if (uri instanceof vscode.Uri) {
+            uri = uri.fsPath;
+        }
+        for (const item of this.configurationCache) {            
+            let lhs = item.uri;
+            if (lhs instanceof vscode.Uri) {
+                lhs = lhs.fsPath;
+            }
+            if (lhs === uri) {
+                return item;
+            }
+        }
+        return undefined;
+    }
+    
+    private getCacheItems(uris: vscode.Uri[]): cpt.SourceFileConfigurationItem[] {
+        let result = [];
+        for (const uri of uris) {
+            const item = this.getCacheItem(uri);
+            if (item !== undefined) {
+                result.push(item);
+            } else {
+                console.warn(`cpptools.getCacheItems: item not found in cache (${uri})`);
+            }
+        }
+        return result;
     }
 
     /**
      * Test if we are able to provide a configuration for the given URI
      * @param uri The URI to look up
      */
-    async canProvideConfiguration(uri: vscode.Uri): Promise<boolean> {        
-        const configs = await this.getSourcesConfiguration([uri]);
-        return configs.length !== 0;
+    async canProvideConfiguration(uri: vscode.Uri): Promise<boolean> {      
+        const item =  this.getCacheItem(uri);
+        if (item === undefined) {
+            await this.updateCache([uri]);
+            const available = this.getCacheItem(uri) !== undefined;
+            if (!available) {
+                console.debug(`cpptools.canProvideConfiguration: no config available for ${uri.fsPath}`);
+            }
+            return this.getCacheItem(uri) !== undefined;
+        } else {
+            return true;
+        }
     }
 
     /**
@@ -45,7 +98,7 @@ export class ConfigurationProvider implements cpt.CustomConfigurationProvider {
      * @param uris The file URIs to look up
      */
     async provideConfigurations(uris: vscode.Uri[]): Promise<cpt.SourceFileConfigurationItem[]> {
-        return this.getSourcesConfiguration(uris);
+        return this.getCacheItems(uris);
     }
 
     /**

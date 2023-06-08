@@ -21,7 +21,7 @@ export async function codeCommand<T>(ext: dan, fn: string, ...args: string[]): P
         env: {
             ...process.env,
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            'dan_BUILD_PATH': ext.buildPath,
+            'DAN_BUILD_PATH': ext.buildPath,
         },
         cwd: ext.projectRoot,
     });
@@ -127,7 +127,7 @@ export async function build(ext: dan, targets: Target[] | string[] = [], debug =
         };
         await vscode.debug.startDebugging(undefined, cfg);
     } else {
-        await channelExec('build', args, null, true, ext.projectRoot);
+        await channelExec('code', ['build', ...args], null, true, ext.projectRoot, ext.buildDiagnosics);
     }
 }
 

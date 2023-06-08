@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import * as commands from './dan/commands';
 import * as debuggerModule from './dan/debugger';
-import * as path from 'path'
+import * as path from 'path';
 import { Target } from './dan/targets';
 import { StatusBar } from './status';
 import { danTestAdapter } from './dan/testAdapter';
@@ -33,11 +33,14 @@ export class dan implements vscode.Disposable {
 	buildTargetsChanged = new vscode.EventEmitter<Target[]>();
 	tests: string[] = [];
 	testsChanged = new vscode.EventEmitter<string[]>();
-
+	buildDiagnosics: vscode.DiagnosticCollection;
+	
 	private readonly _statusBar = new StatusBar(this);
 
 	constructor(public readonly extensionContext: vscode.ExtensionContext) {
 		this.config = vscode.workspace.getConfiguration("dan");
+		this.buildDiagnosics = vscode.languages.createDiagnosticCollection('dan');
+		extensionContext.subscriptions.push(this.buildDiagnosics);
 		if (vscode.workspace.workspaceFolders) {
 			this.workspaceFolder = vscode.workspace.workspaceFolders[0];
 			this.projectRoot = this.workspaceFolder.uri.fsPath;
@@ -237,7 +240,7 @@ export class dan implements vscode.Disposable {
 	_cppToolsProvider: CppToolsConfigurationProvider|undefined = undefined;
 
 	async initCppTools() {
-		this._cppToolsApi = await getCppToolsApi(Version.v2);
+		this._cppToolsApi = await getCppToolsApi(Version.latest);
 		this._cppToolsProvider = new CppToolsConfigurationProvider(this);
 		if (this._cppToolsApi) {
 			if (this._cppToolsApi.notifyReady) {

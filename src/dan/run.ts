@@ -34,12 +34,17 @@ export function channelExec(command: string,
     parameters: string[] = [],
     title: string | null = null,
     cancellable: boolean = true,
-    cwd: string | undefined = undefined) {
+    cwd: string | undefined = undefined,
+    diagnostics: vscode.DiagnosticCollection | undefined = undefined) {
     let stream = streamExec(['python', '-m', 'dan', command, ...parameters], { cwd: cwd });
     title = title ?? `Executing ${command} ${parameters.join(' ')}`;
     const channel = getOutputChannel();
     channel.clear();
     channel.show();
+    // clear diagnostics
+    if (diagnostics !== undefined) {
+        diagnostics.clear();
+    }
     return vscode.window.withProgress(
         {
             title: title,
@@ -55,16 +60,25 @@ export function channelExec(command: string,
                 if (line.length === 0) {
                     return;
                 }
-                const match = /(.+):\s+(\d+)%\|/g.exec(line);
-                if (match) {
-                    const percentage = parseInt(match[2]);
+                const barmatch = /(.+):\s+(\d+)%\|/g.exec(line);
+                if (barmatch) {
+                    const percentage = parseInt(barmatch[2]);
                     const increment = percentage - oldPercentage;
                     oldPercentage = percentage;
                     if (increment > 0) {
-                        progress.report({ increment: increment, message: match[1] });
+                        progress.report({ increment: increment, message: barmatch[1] });
                     }
                 } else {
-                    channel.appendLine(line);
+                    const diagmatch = /DIAGNOSTICS: (.+)$/g.exec(line);
+                    if (diagmatch && diagnostics !== undefined) {
+                        const data = JSON.parse(diagmatch[1]);
+                        for (const fname in data) {
+                            const diag = data[fname];
+                            diagnostics.set(vscode.Uri.file(fname), diag);
+                        }
+                    } else {
+                        channel.appendLine(line);
+                    }
                 }
             });
             await stream.finished();

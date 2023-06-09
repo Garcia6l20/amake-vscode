@@ -267,11 +267,15 @@ export class dan implements vscode.Disposable {
 	}
 
 	async onLoaded() {
+		vscode.commands.executeCommand("setContext", "indanProject", true);
+
 		this.toolchains = await commands.getToolchains(this);
 		await this.ensureConfigured();
+		try {
 		this.targets = await commands.getTargets(this);
-
-		vscode.commands.executeCommand("setContext", "indanProject", true);
+		} catch(e: any) {
+			vscode.window.showErrorMessage(e.toString());
+		}
 
 		await this.initCppTools();
 		await this.initTestExplorer();

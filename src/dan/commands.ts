@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { channelExec, streamExec } from "./run";
+import { channelExec, handleDiagnostics, streamExec } from "./run";
 import { dan } from "../extension";
 import { isTarget, Target } from "./targets";
 import { TestSuiteInfo, TestInfo } from "./testAdapter";
@@ -26,8 +26,10 @@ export async function codeCommand<T>(ext: dan, fn: string, ...args: string[]): P
         cwd: ext.projectRoot,
     });
     let data = '';
-    stream.onLine((line, isError) => {
-        data += line;
+    stream.onLine((line: string, isError) => {
+        if (!handleDiagnostics(line, ext.buildDiagnosics)) {
+            data += line;
+        }
     });
     let rc = await stream.finished();
     if (rc !== 0) {

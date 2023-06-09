@@ -272,7 +272,7 @@ export class dan implements vscode.Disposable {
 		this.toolchains = await commands.getToolchains(this);
 		await this.ensureConfigured();
 		try {
-		this.targets = await commands.getTargets(this);
+			this.targets = await commands.getTargets(this);
 		} catch(e: any) {
 			vscode.window.showErrorMessage(e.toString());
 		}

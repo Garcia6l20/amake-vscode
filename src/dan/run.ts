@@ -65,6 +65,7 @@ export function channelExec(command: string,
     const channel = getOutputChannel();
     channel.clear();
     channel.show();
+    diagnostics?.clear();
     return vscode.window.withProgress(
         {
             title: title,
@@ -86,9 +87,10 @@ export function channelExec(command: string,
                             progress.report({ increment: increment, message: barmatch[1] });
                         }
                     }
-                }
-                if (!handleDiagnostics(line, diagnostics)) {
-                    channel.appendLine(line);
+                } else {
+                    if (!handleDiagnostics(line, diagnostics)) {
+                        channel.appendLine(line);
+                    }
                 }
             });
             await stream.finished();

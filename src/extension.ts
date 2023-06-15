@@ -209,6 +209,9 @@ export class dan implements vscode.Disposable {
 			await this.ensureConfigured();
 			await commands.test(this);
 		});
+		register('clearDiags', () => {
+			this.buildDiagnosics.clear();
+		});
 		register('selectLaunchTarget', async () => this.promptLaunchTarget());
 		register('selectBuildTargets', async () => this.promptBuildTargets());
 		register('selectTestTargets', async () => this.promptTests());

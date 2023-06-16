@@ -1,3 +1,4 @@
+import path = require("path");
 import { gExtension } from "../extension";
 import { Target } from "./targets";
 import * as vscode from 'vscode';
@@ -67,19 +68,20 @@ export interface VSCodeDebugConfiguration extends CppDebugConfiguration {
     [key: string]: any;
 }
 
-async function createGDBDebugConfiguration(debuggerPath: string, target: Target): Promise<VSCodeDebugConfiguration> {
-    // if (!await checkDebugger(debuggerPath)) {
-    //     debuggerPath = 'gdb';
-    //     if (!await checkDebugger(debuggerPath)) {
-    //         throw new Error(localize('gdb.not.found', 'Unable to find GDB in default search path and {0}.', debuggerPath));
-    //     }
-    // }
+function createDebuggerEnv(debuggerPath: string): DebuggerEnvironmentVariable[] {
+    const pathValue = `${path.dirname(debuggerPath)}${path.delimiter}${process.env.PATH}`;
+    return [
+        {name: 'PATH', value: pathValue},
+    ];
+}
 
+async function createGDBDebugConfiguration(debuggerPath: string, target: Target): Promise<VSCodeDebugConfiguration> {
     return {
         type: 'cppdbg',
         name: `Debug ${target.name}`,
         request: 'launch',
         cwd: target.buildPath,
+        environment: createDebuggerEnv(debuggerPath),
         args: [],
         MIMode: MIModes.gdb,
         miDebuggerPath: debuggerPath,
@@ -95,15 +97,12 @@ async function createGDBDebugConfiguration(debuggerPath: string, target: Target)
 }
 
 async function createLLDBDebugConfiguration(debuggerPath: string, target: Target): Promise<VSCodeDebugConfiguration> {
-    // if (!await checkDebugger(debuggerPath)) {
-    //     throw new Error(localize('gdb.not.found', 'Unable to find GDB in default search path and {0}.', debuggerPath));
-    // }
-
     return {
         type: 'cppdbg',
         name: `Debug ${target.name}`,
         request: 'launch',
         cwd: target.buildPath,
+        environment: createDebuggerEnv(debuggerPath),
         args: [],
         MIMode: MIModes.lldb,
         miDebuggerPath: debuggerPath,

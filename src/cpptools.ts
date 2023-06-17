@@ -7,7 +7,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import * as cpt from 'vscode-cpptools';
 import { codeCommand } from './dan/commands';
-import { dan } from './extension';
+import { Dan } from './extension';
 
 /**
  * The actual class that provides information to the cpptools extension. See
@@ -22,7 +22,7 @@ export class ConfigurationProvider implements cpt.CustomConfigurationProvider {
 
     private configurationCache: cpt.SourceFileConfigurationItem[] = [];
 
-    constructor(private ext: dan) {}
+    constructor(private ext: Dan) {}
 
     private getWorkspaceBrowseConfiguration() {
         return codeCommand<cpt.WorkspaceBrowseConfiguration>(this.ext, 'get-workspace-browse-configuration');

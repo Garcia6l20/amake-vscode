@@ -121,70 +121,70 @@
     "keybindings": [
       {
         "key": "f7",
-        "when": "indanProject",
+        "when": "inDanProject",
         "command": "dan.build"
       },
       {
         "key": "ctrl+shift+f7",
-        "when": "indanProject",
+        "when": "inDanProject",
         "command": "dan.debugBuild"
       },
       {
         "key": "ctrl+f7",
-        "when": "indanProject",
+        "when": "inDanProject",
         "command": "dan.clean"
       },
       {
         "key": "f5",
         "command": "dan.debug",
-        "when": "!inDebugMode && indanProject"
+        "when": "!inDebugMode && inDanProject"
       },
       {
         "key": "shift+f5",
         "command": "dan.run",
-        "when": "!inDebugMode && indanProject"
+        "when": "!inDebugMode && inDanProject"
       }
     ],
     "menus": {
       "touchBar": [
         {
           "command": "dan.configure",
-          "when": "indanProject",
+          "when": "inDanProject",
           "group": "dan:build"
         },
         {
           "command": "dan.selectLaunchTarget",
-          "when": "indanProject",
+          "when": "inDanProject",
           "group": "dan:build"
         },
         {
           "command": "dan.selectBuildTargets",
-          "when": "indanProject",
+          "when": "inDanProject",
           "group": "dan:build"
         },
         {
           "command": "dan.build",
-          "when": "indanProject",
+          "when": "inDanProject",
           "group": "dan:build"
         },
         {
           "command": "dan.debugBuild",
-          "when": "indanProject",
+          "when": "inDanProject",
           "group": "dan:debug"
         },
         {
           "command": "dan.run",
-          "when": "indanProject",
+          "when": "inDanProject",
           "group": "dan:run"
         },
         {
           "command": "dan.debug",
-          "when": "indanProject",
+          "when": "inDanProject",
           "group": "dan:run"
         },
         {
           "command": "dan.clearDiags",
-          "when": "indanProject",
+          "when": "inDanProject",
           "group": "dan:utils"
         }
       ]

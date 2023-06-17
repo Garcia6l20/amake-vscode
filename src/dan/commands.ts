@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
 import { channelExec, handleDiagnostics, streamExec } from "./run";
-import { dan } from "../extension";
+import { Dan } from "../extension";
 import { isTarget, Target } from "./targets";
 import { TestSuiteInfo, TestInfo } from "./testAdapter";
 import { DebuggerEnvironmentVariable } from "./debugger";
 
-export async function scanToolchains(ext: dan) {
+export async function scanToolchains(ext: Dan) {
     let args = [];
     if (ext.getConfig<boolean>('verbose')) {
         args.push('-v');
@@ -16,7 +16,7 @@ export async function scanToolchains(ext: dan) {
 const danBaseArgs = ['python', '-m', 'dan'];
 const codeInterfaceArgs = [...danBaseArgs, 'code'];
 
-export async function codeCommand<T>(ext: dan, fn: string, ...args: string[]): Promise<T> {
+export async function codeCommand<T>(ext: Dan, fn: string, ...args: string[]): Promise<T> {
     let stream = streamExec([...codeInterfaceArgs, fn, ...args], {
         env: {
             ...process.env,
@@ -43,24 +43,24 @@ export async function codeCommand<T>(ext: dan, fn: string, ...args: string[]): P
     }
 }
 
-export async function getToolchains(ext: dan): Promise<string[]> {
+export async function getToolchains(ext: Dan): Promise<string[]> {
     return codeCommand<string[]>(ext, 'get-toolchains');
 }
 
-export async function getTargets(ext: dan): Promise<Target[]> {
+export async function getTargets(ext: Dan): Promise<Target[]> {
     return codeCommand<Target[]>(ext, 'get-targets');
 }
 
 
-export async function getTests(ext: dan): Promise<string[]> {
+export async function getTests(ext: Dan): Promise<string[]> {
     return codeCommand<string[]>(ext, 'get-tests');
 }
 
-export async function getTestSuites(ext: dan): Promise<TestSuiteInfo> {
+export async function getTestSuites(ext: Dan): Promise<TestSuiteInfo> {
     return codeCommand<TestSuiteInfo>(ext, 'get-test-suites');
 }
 
-export async function configure(ext: dan) {
+export async function configure(ext: Dan) {
     let args = ['-B', ext.buildPath, '-S', ext.projectRoot];
     const settings = ext.getConfig<Object>('settings');
     if (settings !== undefined) {
@@ -82,7 +82,7 @@ export async function configure(ext: dan) {
     return channelExec('configure', args, null, true, ext.projectRoot);
 }
 
-function baseArgs(ext: dan): string[] {
+function baseArgs(ext: Dan): string[] {
     let args = ['-B', ext.buildPath];
     if (ext.getConfig<boolean>('verbose')) {
         args.push('-v');
@@ -106,7 +106,7 @@ interface PythonDebugConfiguration {
     environment?: DebuggerEnvironmentVariable[];
 }
 
-export async function build(ext: dan, targets: Target[] | string[] = [], debug = false) {
+export async function build(ext: Dan, targets: Target[] | string[] = [], debug = false) {
     let args = baseArgs(ext);
     if (targets.length !== 0) {
         args.push(...targets.map((t) => {
@@ -133,11 +133,11 @@ export async function build(ext: dan, targets: Target[] | string[] = [], debug =
     }
 }
 
-export async function clean(ext: dan) {
+export async function clean(ext: Dan) {
     return channelExec('clean', [...baseArgs(ext), ...ext.buildTargets.map(t => t.fullname)], null, true, ext.projectRoot);
 }
 
-export async function run(ext: dan) {
+export async function run(ext: Dan) {
     let args = baseArgs(ext);
     if (ext.launchTarget) {
         args.push(ext.launchTarget.fullname);
@@ -145,7 +145,7 @@ export async function run(ext: dan) {
     return channelExec('run', args, null, true, ext.projectRoot);
 }
 
-export async function test(ext: dan) {
+export async function test(ext: Dan) {
     let args = baseArgs(ext);
     args.push(...ext.tests);
     return channelExec('test', args, null, true, ext.projectRoot);

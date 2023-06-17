@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { dan } from './extension';
+import { Dan } from './extension';
 import { Target } from './dan/targets';
 
 // Button class
@@ -69,7 +69,7 @@ abstract class Button {
 
 
 class BuildButton extends Button {
-    constructor(ext : dan, protected readonly priority: number) {
+    constructor(ext : Dan, protected readonly priority: number) {
         super(priority);
         this.command = 'dan.build';
         this.text = 'Build';
@@ -97,7 +97,7 @@ class BuildButton extends Button {
 
 class LaunchButton extends Button {
     settingsName = 'launch';
-    constructor(ext: dan, protected readonly priority: number) {
+    constructor(ext: Dan, protected readonly priority: number) {
         super(priority);
         this.command = 'dan.run';
         this.icon = 'play';
@@ -125,7 +125,7 @@ class LaunchButton extends Button {
 
 class DebugButton extends Button {
     settingsName = 'debug';
-    constructor(ext: dan, protected readonly priority: number) {
+    constructor(ext: Dan, protected readonly priority: number) {
         super(priority);
         this.command = 'dan.debug';
         this.icon = 'debug-alt';
@@ -153,7 +153,7 @@ class DebugButton extends Button {
 
 class TestButton extends Button {
     settingsName = 'test';
-    constructor(ext: dan, protected readonly priority: number) {
+    constructor(ext: Dan, protected readonly priority: number) {
         super(priority);
         this.command = 'dan.test';
         this.icon = 'beaker';
@@ -163,7 +163,7 @@ class TestButton extends Button {
 }
 
 class SelectLaunchTargetButton extends Button {
-    constructor(ext: dan, protected readonly priority: number) {
+    constructor(ext: Dan, protected readonly priority: number) {
         super(priority);
         this.command = 'dan.selectLaunchTarget';
         this.text = 'none';
@@ -176,7 +176,7 @@ class SelectLaunchTargetButton extends Button {
 }
 
 class SelectBuildTargetsButton extends Button {
-    constructor(ext: dan, protected readonly priority: number) {
+    constructor(ext: Dan, protected readonly priority: number) {
         super(priority);
         this.command = 'dan.selectBuildTargets';
         this.text = 'all';
@@ -195,7 +195,7 @@ class SelectBuildTargetsButton extends Button {
 }
 
 class SelectTestTargetsButton extends Button {
-    constructor(ext: dan, protected readonly priority: number) {
+    constructor(ext: Dan, protected readonly priority: number) {
         super(priority);
         this.command = 'dan.selectTestTargets';
         this.text = 'test all';
@@ -216,7 +216,7 @@ class SelectTestTargetsButton extends Button {
 export class StatusBar implements vscode.Disposable {
 
   private readonly _buttons: Button[];
-  constructor(ext: dan) {
+  constructor(ext: Dan) {
     this._buttons = [
         new SelectLaunchTargetButton(ext, 1),
         new DebugButton(ext, 0.9),

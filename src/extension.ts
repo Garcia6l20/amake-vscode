@@ -6,7 +6,7 @@ import * as debuggerModule from './dan/debugger';
 import * as path from 'path';
 import { Target } from './dan/targets';
 import { StatusBar } from './status';
-import { danTestAdapter } from './dan/testAdapter';
+import { DanTestAdapter } from './dan/testAdapter';
 import { TestHub, testExplorerExtensionId } from 'vscode-test-adapter-api';
 import { Log, TestAdapterRegistrar } from 'vscode-test-adapter-util';
 import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
@@ -21,7 +21,7 @@ class TargetPickItem {
 	}
 };
 
-export class dan implements vscode.Disposable {
+export class Dan implements vscode.Disposable {
 	config: vscode.WorkspaceConfiguration;
 	workspaceFolder: vscode.WorkspaceFolder;
 	projectRoot: string;
@@ -66,7 +66,7 @@ export class dan implements vscode.Disposable {
 	 * Create the instance
 	 */
 	static async create(context: vscode.ExtensionContext) {
-		gExtension = new dan(context);
+		gExtension = new Dan(context);
 
 		await gExtension.registerCommands();
 		await gExtension.onLoaded();
@@ -232,7 +232,7 @@ export class dan implements vscode.Disposable {
 			this.extensionContext.subscriptions.push(
 				new TestAdapterRegistrar(
 					testHub,
-					(workspaceFolder) => new danTestAdapter(this, log),
+					(workspaceFolder) => new DanTestAdapter(this, log),
 					log
 				)
 			);
@@ -270,7 +270,7 @@ export class dan implements vscode.Disposable {
 	}
 
 	async onLoaded() {
-		vscode.commands.executeCommand("setContext", "indanProject", true);
+		vscode.commands.executeCommand("setContext", "inDanProject", true);
 
 		this.toolchains = await commands.getToolchains(this);
 		await this.ensureConfigured();
@@ -286,12 +286,12 @@ export class dan implements vscode.Disposable {
 };
 
 
-export let gExtension: dan | null = null;
+export let gExtension: Dan | null = null;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
-	await dan.create(context);
+	await Dan.create(context);
 }
 
 // This method is called when your extension is deactivated

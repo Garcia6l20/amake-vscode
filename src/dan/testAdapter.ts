@@ -17,7 +17,7 @@ import {
 } from "vscode-test-adapter-api";
 import { promises as fsPromises } from 'fs';
 import { Log } from "vscode-test-adapter-util";
-import { dan } from "../extension";
+import { Dan } from "../extension";
 import { Target } from "./targets";
 import { existsSync as fileExists } from 'fs';
 
@@ -42,7 +42,7 @@ export interface TestInfo extends APITestInfo {
 };
 
 
-export class danTestAdapter implements TestAdapter {
+export class DanTestAdapter implements TestAdapter {
     private disposables: { dispose(): void }[] = [];
     private root: TestSuiteInfo | undefined = undefined;
 
@@ -54,7 +54,7 @@ export class danTestAdapter implements TestAdapter {
     >();
 
     constructor(
-        private readonly ext: dan,
+        private readonly ext: Dan,
         private readonly log: Log
     ) {
         this.log.info('Initializing dan test adapter');

@@ -68,6 +68,14 @@
       {
         "command": "dan.clearDiags",
         "title": "dan: Clear diagnostics"
+      },
+      {
+        "command": "dan.selectToolchain",
+        "title": "dan: Select toolchain"
+      },
+      {
+        "command": "dan.currentToolchain",
+        "title": "dan: Get current toolchains"
       }
     ],
     "configuration": {
@@ -75,7 +83,7 @@
       "properties": {
         "dan.buildFolder": {
           "type": "string",
-          "default": "build",
+          "default": "build-${toolchain}",
           "description": "Specify in which folder dan build configure and build the project."
         },
         "dan.configureOptions": {

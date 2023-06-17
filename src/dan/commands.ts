@@ -61,6 +61,10 @@ export async function getTestSuites(ext: Dan): Promise<TestSuiteInfo> {
 }
 
 export async function configure(ext: Dan) {
+    const toolchain = await ext.currentToolchain();
+    if (toolchain === undefined) {
+        return;
+    }
     let args = ['-B', ext.buildPath, '-S', ext.projectRoot];
     const settings = ext.getConfig<Object>('settings');
     if (settings !== undefined) {
@@ -77,8 +81,7 @@ export async function configure(ext: Dan) {
     if (ext.getConfig<boolean>('verbose')) {
         args.push('-v');
     }
-    args.push('--toolchain');
-    args.push(await vscode.window.showQuickPick(['default', ...ext.toolchains]) ?? 'default');
+    args.push('--toolchain', toolchain);
     return channelExec('configure', args, null, true, ext.projectRoot);
 }
 

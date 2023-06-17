@@ -98,7 +98,8 @@
         },
         "dan.debuggerPath": {
           "type": "string",
-          "description": "Specify the debugger executable to use"
+          "description": "Specify the debugger executable to use",
+          "default": null
         },
         "dan.verbose": {
           "type": "boolean",

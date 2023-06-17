@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import * as commands from './dan/commands';
 import * as debuggerModule from './dan/debugger';
 import * as path from 'path';
+import * as os from 'os';
 import { Target } from './dan/targets';
 import { StatusBar } from './status';
 import { DanTestAdapter } from './dan/testAdapter';
@@ -202,6 +203,42 @@ export class Dan implements vscode.Disposable {
 		return this._toolchain;
 	}
 
+	private _toolchainsConfig: any|undefined = undefined;
+	async toolchainConfig() {
+		const toolchain = await this.currentToolchain();
+		if (toolchain == undefined) {
+			return undefined;
+		}
+		if (this._toolchainsConfig === undefined) {
+			const configPath = path.join(os.homedir(), '.dan', 'toolchains.json');
+			if (existsSync(configPath)) {
+				try {
+					const data = readFileSync(configPath, 'utf8');
+					this._toolchainsConfig = JSON.parse(data)['toolchains'];
+				} catch (err) {
+					console.error(err);
+					return undefined;
+				}
+			} else {
+				return undefined;
+			}
+		}
+		if (this._toolchainsConfig === undefined) {
+			return undefined;
+		}
+		return this._toolchainsConfig[toolchain];
+	}
+
+    async debuggerPath() {
+		const debuggerPath = this.getConfig<string>('debuggerPath');
+		if (debuggerPath) {
+			return debuggerPath;
+		}
+		const config = await this.toolchainConfig();
+		if (config !== undefined && 'dbg' in config) {
+			return config['dbg'];
+		}
+    }
 
 	async ensureConfigured() {
 		if (!this.config) {

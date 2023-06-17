@@ -124,7 +124,7 @@ function createMsvcDebugConfiguration(target: Target): VSCodeDebugConfiguration 
 export async function debug(target: Target, args: string[] = []) {    
     let debuggerPath = undefined;
     if (gExtension !== null) {
-        debuggerPath = gExtension.getConfig<string>('debuggerPath');
+        debuggerPath = await gExtension.debuggerPath();
         if (debuggerPath === '') {
             debuggerPath = undefined;
         }

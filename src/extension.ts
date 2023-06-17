@@ -268,7 +268,7 @@ export class Dan implements vscode.Disposable {
 
 	async ensureConfigured() {
 		if (!this.config) {
-			await commands.configure(this);
+			await this.configure();
 		}
 	}
 
@@ -405,7 +405,7 @@ export class Dan implements vscode.Disposable {
 
 		this.loadWorkspaceState();
 
-		await this.ensureConfigured();
+		await this.configure();
 		try {
 			this.targets = await commands.getTargets(this);
 		} catch(e: any) {

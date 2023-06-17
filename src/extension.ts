@@ -50,13 +50,13 @@ export class Dan implements vscode.Disposable {
 	workspaceFolder: vscode.WorkspaceFolder;
 	projectRoot: string;
 	targets: Target[];
-	launchTarget: Target | null = null;
-	launchTargetChanged = new vscode.EventEmitter<Target>();
+	launchTarget: Target | undefined = undefined;
+	launchTargetChanged = new vscode.EventEmitter<Target|undefined>();
 	buildTargets: Target[] = [];
 	buildTargetsChanged = new vscode.EventEmitter<Target[]>();
 	tests: string[] = [];
 	testsChanged = new vscode.EventEmitter<string[]>();
-	currentToolchainChanged = new vscode.EventEmitter<string>();
+	currentToolchainChanged = new vscode.EventEmitter<string|undefined>();
 	buildDiagnosics: vscode.DiagnosticCollection;
 	
 	private readonly _statusBar = new StatusBar(this);
@@ -74,6 +74,32 @@ export class Dan implements vscode.Disposable {
 		this.targets = [];
 		vscode.workspace.onDidChangeConfiguration((e: vscode.ConfigurationChangeEvent) => {
 			this.codeConfig = vscode.workspace.getConfiguration("dan");
+		});
+	}
+
+	loadWorkspaceState() {
+		this._toolchain = this.extensionContext.workspaceState.get('currentToolchain');
+		this.currentToolchainChanged.fire(this._toolchain);
+		this.currentToolchainChanged.event((value: string|undefined) => {
+			this.extensionContext.workspaceState.update('currentToolchain', value);
+		});
+
+		this.tests = this.extensionContext.workspaceState.get<string[]>('selectedTests')??[];
+		this.testsChanged.fire(this.tests);
+		this.testsChanged.event((value: string[]) => {
+			this.extensionContext.workspaceState.update('selectedTests', value);
+		});
+		
+		this.buildTargets = this.extensionContext.workspaceState.get<Target[]>('buildTargets')??[];
+		this.buildTargetsChanged.fire(this.buildTargets);
+		this.buildTargetsChanged.event((value: Target[]) => {
+			this.extensionContext.workspaceState.update('buildTargets', value);
+		});
+
+		this.launchTarget = this.extensionContext.workspaceState.get<Target>('launchTarget');
+		this.launchTargetChanged.fire(this.launchTarget);
+		this.launchTargetChanged.event((value: Target|undefined) => {
+			this.extensionContext.workspaceState.update('launchTarget', value);
 		});
 	}
 
@@ -206,7 +232,7 @@ export class Dan implements vscode.Disposable {
 	private _toolchainsConfig: any|undefined = undefined;
 	async toolchainConfig() {
 		const toolchain = await this.currentToolchain();
-		if (toolchain == undefined) {
+		if (!toolchain) {
 			return undefined;
 		}
 		if (this._toolchainsConfig === undefined) {
@@ -223,7 +249,7 @@ export class Dan implements vscode.Disposable {
 				return undefined;
 			}
 		}
-		if (this._toolchainsConfig === undefined) {
+		if (!this._toolchainsConfig) {
 			return undefined;
 		}
 		return this._toolchainsConfig[toolchain];
@@ -376,6 +402,8 @@ export class Dan implements vscode.Disposable {
 
 	async onLoaded() {
 		vscode.commands.executeCommand("setContext", "inDanProject", true);
+
+		this.loadWorkspaceState();
 
 		await this.ensureConfigured();
 		try {

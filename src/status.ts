@@ -75,14 +75,14 @@ class BuildButton extends Button {
         this.text = 'Build';
         this.icon = 'gear';
         this.tooltip = 'Build the selected target(s) in the terminal window';
-        ext.launchTargetChanged.event((target: Target) => {
+        ext.launchTargetChanged.event((target: Target|undefined) => {
             this.target = target;
         });
     }
 
-    private _target: Target | null = null;
+    private _target: Target | undefined = undefined;
 
-    set target(v: Target | null) {
+    set target(v: Target | undefined) {
         this._target = v;
         this.update();
     }
@@ -103,14 +103,14 @@ class LaunchButton extends Button {
         this.icon = 'play';
         this.text = 'Run';
         this.tooltip = 'Launch the selected target in the terminal window';
-        ext.launchTargetChanged.event((target: Target) => {
+        ext.launchTargetChanged.event((target: Target | undefined) => {
             this.target = target;
         });
     }
 
-    private _target: Target | null = null;
+    private _target: Target | undefined = undefined;
 
-    set target(v: Target | null) {
+    set target(v: Target | undefined) {
         this._target = v;
         this.update();
     }
@@ -131,14 +131,14 @@ class DebugButton extends Button {
         this.icon = 'debug-alt';
         this.text = 'Debug';
         this.tooltip = 'Debug the selected target in the terminal window';
-        ext.launchTargetChanged.event((target: Target) => {
+        ext.launchTargetChanged.event((target: Target | undefined) => {
             this.target = target;
         });
     }
 
-    private _target: Target | null = null;
+    private _target: Target | undefined = undefined;
 
-    set target(v: Target | null) {
+    set target(v: Target | undefined) {
         this._target = v;
         this.update();
     }
@@ -168,8 +168,8 @@ class SelectLaunchTargetButton extends Button {
         this.command = 'dan.selectLaunchTarget';
         this.text = 'none';
         this.tooltip = 'Select run/debug target';
-        ext.launchTargetChanged.event((target: Target) => {
-            this.text = target.name;
+        ext.launchTargetChanged.event((target: Target | undefined) => {
+            this.text = target?.name ?? 'none';
             this.update();
         });
     }
@@ -219,8 +219,8 @@ class SelectToolchainButton extends Button {
         this.command = 'dan.selectToolchain';
         this.text = 'none';
         this.tooltip = 'Select toolchain';
-        ext.currentToolchainChanged.event((toolchain: string) => {
-            this.text = toolchain;
+        ext.currentToolchainChanged.event((toolchain: string|undefined) => {
+            this.text = toolchain??'none';
             this.update();
         });
     }

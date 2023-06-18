@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { channelExec, handleDiagnostics, streamExec } from "./run";
+import { channelExec, handleDiagnostics, Stream } from "./run";
 import { Dan } from "../extension";
 import { isTarget, Target } from "./targets";
 import { TestSuiteInfo, TestInfo } from "./testAdapter";
@@ -13,11 +13,11 @@ export async function scanToolchains(ext: Dan) {
     return channelExec('scan-toolchains');
 }
 
-const danBaseArgs = ['python', '-m', 'dan'];
+const danBaseArgs = ['-m', 'dan'];
 const codeInterfaceArgs = [...danBaseArgs, 'code'];
 
 export async function codeCommand<T>(ext: Dan, fn: string, ...args: string[]): Promise<T> {
-    let stream = streamExec([...codeInterfaceArgs, fn, ...args], {
+    let stream = new Stream('python', [...codeInterfaceArgs, fn, ...args], {
         env: {
             ...process.env,
             // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -26,7 +26,7 @@ export async function codeCommand<T>(ext: Dan, fn: string, ...args: string[]): P
         cwd: ext.projectRoot,
     });
     let data = '';
-    stream.onLine((line: string, isError) => {
+    stream.onLine((line: string, isError: boolean) => {
         if (!handleDiagnostics(line, ext.buildDiagnosics)) {
             data += line;
         }

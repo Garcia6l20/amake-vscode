@@ -20,6 +20,7 @@ import { Log } from "vscode-test-adapter-util";
 import { Dan } from "../extension";
 import { Target } from "./targets";
 import { existsSync as fileExists } from 'fs';
+import { Stream } from "./run";
 
 export interface TestSuiteInfo extends APITestSuiteInfo {
     children: (TestSuiteInfo | TestInfo)[];
@@ -116,16 +117,21 @@ export class DanTestAdapter implements TestAdapter {
         return undefined;
     }
 
+    private runnintTests: Stream[] = [];
     async runTest(test: TestInfo): Promise<void> {
         this.testStatesEmitter.fire(<TestEvent>{ type: "test", test: test.id, state: "running" });
-        const stream = await run.streamExec(['python', '-m', 'dan', 'test', '-B', this.ext.buildPath, '-q', test.id], {
+        const stream = new Stream('python', ['-m', 'dan', 'test', '-B', this.ext.buildPath, '-q', test.id], {
             cwd: this.ext.projectRoot,
         });
+        let killed = false;
+        this.runnintTests.push(stream);
         let out: string = '';
         stream.onLine((line, isError) => {
             out += line;
         });
-        const res = await stream.finished();
+        let res = await stream.finished();
+        const index = this.runnintTests.indexOf(stream);
+        this.runnintTests.splice(index, 1);
         let log: string = '';
         let logFile = path.join(test.out);
         if (fileExists(logFile)) {
@@ -135,13 +141,16 @@ export class DanTestAdapter implements TestAdapter {
         if (fileExists(logFile)) {
             log += await fsPromises.readFile(logFile, 'utf-8');
         }
-
         let event = <TestEvent>{
             type: "test",
             test: test.id,
             file: test.file,
             line: test.line,
         };
+        if (killed) {
+            res = -1;
+            log += 'KILLED\n';
+        }
         if (log.length > 0) {
             event.message = log;
         } else {
@@ -255,7 +264,7 @@ export class DanTestAdapter implements TestAdapter {
         }
     }
     cancel(): void {
-        throw new Error("Method not implemented.");
+        this.runnintTests.forEach((stream: Stream) => stream.kill());
     }
     get tests(): vscode.Event<TestLoadStartedEvent | TestLoadFinishedEvent> {
         return this.testsEmitter.event;

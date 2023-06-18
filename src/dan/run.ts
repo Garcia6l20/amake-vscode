@@ -1,34 +1,46 @@
 import * as vscode from "vscode";
 import * as cp from "child_process";
 
-function processBuffer(msg: Buffer, isError: boolean, fn: (line: string, isError: boolean) => void) {
-    const str = msg.toString();
-    for (const line of str.split(/\r?\n/)) {
+function  processBuffer(data: Buffer, isError: boolean, fn: (line: string, isError: boolean) => void) {
+    for (const line of data.toString().split(/\r?\n/)) {
         if (line.length > 0) {
             fn(line, isError);
         }
     }
 }
 
-export function streamExec(
-    command: string[],
-    options: cp.SpawnOptions = {}
-) {
-    const spawned = cp.spawn(command[0], command.slice(1), options);
-    return {
-        onLine(fn: (line: string, isError: boolean) => void) {
-            spawned.stdout?.on("data", (msg: Buffer) => processBuffer(msg, false, fn));
-            spawned.stderr?.on("data", (msg: Buffer) => processBuffer(msg, true, fn));
-        },
-        kill(signal?: NodeJS.Signals) {
-            spawned.kill(signal || "SIGKILL");
-        },
-        finished() {
-            return new Promise<number>(res => {
-                spawned.on("exit", code => res(code ? code : 0));
-            });
+export class Stream {
+    private proc: cp.ChildProcess;
+
+    constructor(command: string, args: string[], options: cp.SpawnOptions = {}) {
+        this.proc = cp.spawn(command, args, options);
+    }
+
+    onLine(fn: (line: string, isError: boolean) => void) {
+        this.proc.stdout?.on("data", (data: Buffer) => processBuffer(data, false, fn));
+        this.proc.stderr?.on("data", (data: Buffer) => processBuffer(data, true, fn));
+    }
+    kill(signal?: NodeJS.Signals) {
+        this.proc.kill(signal || "SIGTERM");
+    }
+    private _onExit(code: number|null): number {
+        if (code === null) {
+            if (this.proc.killed) {
+                return -1;
+            } else {
+                return 0;
+            }
         }
-    };
+        return code;
+    }
+    finished() {
+        return new Promise<number>(res => {
+            this.proc.on("exit", (code) => {
+                code = this._onExit(code);
+                res(code);
+            });
+        });
+    }
 }
 
 let _channel: vscode.OutputChannel;
@@ -60,7 +72,7 @@ export function channelExec(command: string,
     cancellable: boolean = true,
     cwd: string | undefined = undefined,
     diagnostics: vscode.DiagnosticCollection | undefined = undefined) {
-    let stream = streamExec(['python', '-m', 'dan', command, ...parameters], { cwd: cwd });
+    let stream = new Stream('python', ['-m', 'dan', command, ...parameters], { cwd: cwd });
     title = title ?? `Executing ${command} ${parameters.join(' ')}`;
     const channel = getOutputChannel();
     channel.clear();
@@ -77,20 +89,16 @@ export function channelExec(command: string,
             let oldPercentage = 0;
             progress.report({ message: 'running...', increment: 0 });
             stream.onLine((line: string, isError) => {
-                if (isError) {
-                    const barmatch = /(.+):\s+(\d+)%\|/g.exec(line);
-                    if (barmatch) {
-                        const percentage = parseInt(barmatch[2]);
-                        const increment = percentage - oldPercentage;
-                        oldPercentage = percentage;
-                        if (increment > 0) {
-                            progress.report({ increment: increment, message: barmatch[1] });
-                        }
+                const barmatch = /(.+):\s+(\d+)%\|/g.exec(line);
+                if (barmatch) {
+                    const percentage = parseInt(barmatch[2]);
+                    const increment = percentage - oldPercentage;
+                    oldPercentage = percentage;
+                    if (increment > 0) {
+                        progress.report({ increment: increment, message: barmatch[1] });
                     }
-                } else {
-                    if (!handleDiagnostics(line, diagnostics)) {
-                        channel.appendLine(line);
-                    }
+                } else if (!handleDiagnostics(line, diagnostics)) {
+                    channel.appendLine(line);
                 }
             });
             await stream.finished();

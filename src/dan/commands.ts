@@ -82,7 +82,7 @@ export async function configure(ext: Dan) {
         args.push('-v');
     }
     args.push('--toolchain', toolchain);
-    return channelExec('configure', args, null, true, ext.projectRoot);
+    return channelExec('configure', args, undefined, true, ext.projectRoot);
 }
 
 function baseArgs(ext: Dan): string[] {
@@ -132,12 +132,12 @@ export async function build(ext: Dan, targets: Target[] | string[] = [], debug =
         };
         await vscode.debug.startDebugging(undefined, cfg);
     } else {
-        await channelExec('code', ['build', ...args], null, true, ext.projectRoot, ext.buildDiagnosics);
+        await channelExec('code', ['build', ...args], undefined, true, ext.projectRoot, ext.buildDiagnosics);
     }
 }
 
 export async function clean(ext: Dan) {
-    return channelExec('clean', [...baseArgs(ext), ...ext.buildTargets.map(t => t.fullname)], null, true, ext.projectRoot);
+    return channelExec('clean', [...baseArgs(ext), ...ext.buildTargets.map(t => t.fullname)], undefined, true, ext.projectRoot);
 }
 
 export async function run(ext: Dan) {
@@ -145,11 +145,11 @@ export async function run(ext: Dan) {
     if (ext.launchTarget) {
         args.push(ext.launchTarget.fullname);
     }
-    return channelExec('run', args, null, true, ext.projectRoot);
+    return channelExec('run', args, undefined, true, ext.projectRoot);
 }
 
 export async function test(ext: Dan) {
     let args = baseArgs(ext);
     args.push(...ext.tests);
-    return channelExec('test', args, null, true, ext.projectRoot);
+    return channelExec('test', args, undefined, true, ext.projectRoot);
 }

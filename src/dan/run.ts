@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as cp from "child_process";
 
 function  processBuffer(data: Buffer, isError: boolean, fn: (line: string, isError: boolean) => void) {
-    for (let line of data.toString().split(/\r?\n/)) {
+    for (let line of data.toString().split(/\r?\n|\r/)) {
         line = line.trim();
         if (line.length > 0) {
             fn(line, isError);

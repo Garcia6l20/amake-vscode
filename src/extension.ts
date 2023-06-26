@@ -283,6 +283,11 @@ export class Dan implements vscode.Disposable {
 		this._config = undefined;
 		await commands.configure(this);
 		this.notifyUpdated();
+		
+		this.extensionContext.environmentVariableCollection.replace('DAN_BUILD_PATH', this.buildPath);
+		if (this._toolchain !== undefined) {
+			this.extensionContext.environmentVariableCollection.replace('DAN_TOOLCHAIN', this._toolchain);
+		}
 	}
 
 	async build(debug = false) {

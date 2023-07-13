@@ -1,3 +1,5 @@
+type Environment = Record<string, string>;
+
 export interface Target {
     name: string;
     fullname: string;
@@ -5,6 +7,7 @@ export interface Target {
     buildPath: string;
     executable: boolean;
     type: string;
+    env?: Environment;
 };
 
 export function isTarget(object: any): object is Target {

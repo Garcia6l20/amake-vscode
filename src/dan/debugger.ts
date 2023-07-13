@@ -69,10 +69,16 @@ export interface VSCodeDebugConfiguration extends CppDebugConfiguration {
     [key: string]: any;
 }
 
-function createDebuggerEnv(debuggerPath: string): DebuggerEnvironmentVariable[] {
-    const pathValue = `${path.dirname(debuggerPath)}${path.delimiter}${process.env.PATH}`;
+function createDebuggerEnv(debuggerPath: string, target: Target): DebuggerEnvironmentVariable[] {
+    let paths = [path.dirname(debuggerPath)];
+    if (target.env !== undefined && target.env.PATH !== undefined) {
+        paths.push(...target.env.PATH.split(path.delimiter));
+    }
+    if (process.env.PATH !== undefined) {
+        paths.push(...process.env.PATH.split(path.delimiter));
+    }
     return [
-        {name: 'PATH', value: pathValue},
+        {name: 'PATH', value: paths.join(path.delimiter)},
     ];
 }
 
@@ -82,7 +88,7 @@ async function createGDBDebugConfiguration(debuggerPath: string, target: Target)
         name: `Debug ${target.name}`,
         request: 'launch',
         cwd: target.buildPath,
-        environment: createDebuggerEnv(debuggerPath),
+        environment: createDebuggerEnv(debuggerPath, target),
         args: [],
         // eslint-disable-next-line @typescript-eslint/naming-convention
         MIMode: MIModes.gdb,
@@ -104,7 +110,7 @@ async function createLLDBDebugConfiguration(debuggerPath: string, target: Target
         name: `Debug ${target.name}`,
         request: 'launch',
         cwd: target.buildPath,
-        environment: createDebuggerEnv(debuggerPath),
+        environment: createDebuggerEnv(debuggerPath, target),
         args: [],
         // eslint-disable-next-line @typescript-eslint/naming-convention
         MIMode: MIModes.lldb,

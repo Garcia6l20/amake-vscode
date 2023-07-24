@@ -379,7 +379,7 @@ export class Dan implements vscode.Disposable {
 	_cppToolsProvider: CppToolsConfigurationProvider|undefined = undefined;
 
 	async initCppTools() {
-		this._cppToolsApi = await getCppToolsApi(Version.latest);
+		this._cppToolsApi = await getCppToolsApi(Version.v5);
 		this._cppToolsProvider = new CppToolsConfigurationProvider(this);
 		if (this._cppToolsApi) {
 			if (this._cppToolsApi.notifyReady) {

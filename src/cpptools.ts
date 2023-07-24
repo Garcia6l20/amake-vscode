@@ -37,8 +37,17 @@ export class ConfigurationProvider implements cpt.CustomConfigurationProvider {
         const configs = await codeCommand<cpt.SourceFileConfigurationItem[]>(this.ext, 'get-source-configuration', ...uris.map(u => u.fsPath));
         for (const ii in configs) {
             let item = this.getCacheItem(configs[ii].uri);
+            if (item !== undefined && !(item.uri instanceof vscode.Uri)) {
+            }
             if (item === undefined) {
-                this.configurationCache.push(configs[ii]);
+                let item = configs[ii];
+                if (!(item.uri instanceof vscode.Uri)) {
+                    item = {
+                        uri: vscode.Uri.file(item.uri),
+                        configuration: item.configuration
+                    };
+                }
+                this.configurationCache.push(item);
             } else {
                 configs[ii] = item;
             }
@@ -46,15 +55,11 @@ export class ConfigurationProvider implements cpt.CustomConfigurationProvider {
     }
 
     private getCacheItem(uri: vscode.Uri | string): cpt.SourceFileConfigurationItem | undefined {
-        if (uri instanceof vscode.Uri) {
-            uri = uri.fsPath;
+        if (!(uri instanceof vscode.Uri)) {
+            uri = vscode.Uri.file(uri);
         }
-        for (const item of this.configurationCache) {            
-            let lhs = item.uri;
-            if (lhs instanceof vscode.Uri) {
-                lhs = lhs.fsPath;
-            }
-            if (lhs === uri) {
+        for (const item of this.configurationCache) {
+            if (item.uri === uri || (item.uri instanceof vscode.Uri && item.uri.fsPath === uri.fsPath)) {
                 return item;
             }
         }

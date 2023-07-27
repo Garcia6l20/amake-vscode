@@ -51,6 +51,8 @@ export class Dan implements vscode.Disposable {
 	projectRoot: string;
 	targets: Target[];
 	launchTarget: Target | undefined = undefined;
+	_buildType: string = 'Debug';
+	buildTypeChanged = new vscode.EventEmitter<string>();
 	launchTargetChanged = new vscode.EventEmitter<Target|undefined>();
 	buildTargets: Target[] = [];
 	buildTargetsChanged = new vscode.EventEmitter<Target[]>();
@@ -101,15 +103,25 @@ export class Dan implements vscode.Disposable {
 		this.launchTargetChanged.event((value: Target|undefined) => {
 			this.extensionContext.workspaceState.update('launchTarget', value);
 		});
+		
+		this._buildType = this.extensionContext.workspaceState.get<string>('buildType', 'Debug');
+		this.buildTypeChanged.fire(this.buildType);
+		this.buildTypeChanged.event((value: string) => {
+			this.extensionContext.workspaceState.update('buildType', value);
+		});
 	}
 
 	getConfig<T>(name: string): T | undefined {
 		return this.codeConfig.get<T>(name);
 	}
 
+	get buildType(): string {
+		return this._buildType.toLocaleLowerCase().replace(' ', '_');
+	}
+
 	get buildPath(): string {
 		const p = this.projectRoot + '/' + this.getConfig<string>('buildFolder') ?? 'build';
-		return p.replace('${toolchain}', this._toolchain ?? 'default');//.replace('${buildType}', this._buildType ?? 'debug');
+		return p.replace('${toolchain}', this._toolchain ?? 'default').replace('${buildType}', this.buildType ?? 'debug');
 	}
 
 	/**
@@ -132,6 +144,28 @@ export class Dan implements vscode.Disposable {
 	}
 
 	async cleanup() {
+	}
+
+	async invalidateConfig() {
+		this.targets = [];
+		this.launchTarget = undefined;
+		this.launchTargetChanged.fire(this.launchTarget);
+		this.buildTargets = [];
+		this.buildTargetsChanged.fire(this.buildTargets);
+		this.tests = [];
+		this.testsChanged.fire(this.tests);
+	}
+
+	async promptBuildType() {
+		const types = ['Debug', 'Release', 'Release min size', 'Release debug infos'];
+		let type = await vscode.window.showQuickPick(['Debug', 'Release', 'Release min size', 'Release debug infos']);
+		if (type) {
+			this._buildType = type;
+			this.buildTypeChanged.fire(this.buildType);
+			await this.configure();
+			await this.invalidateConfig();
+		}
+		return this.buildType;
 	}
 
 	async promptLaunchTarget() {
@@ -348,6 +382,7 @@ export class Dan implements vscode.Disposable {
 		});
 		register('selectLaunchTarget', async () => this.promptLaunchTarget());
 		register('selectBuildTargets', async () => this.promptBuildTargets());
+		register('selectBuildType', async () => this.promptBuildType());
 		register('selectTestTargets', async () => this.promptTests());
 		register('selectToolchain', async () => this.selectToolchain());
 		register('currentToolchain', async () => this.currentToolchain());

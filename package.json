@@ -58,6 +58,10 @@
         "title": "dan: Select build targets"
       },
       {
+        "command": "dan.selectBuildType",
+        "title": "dan: Select build type"
+      },
+      {
         "command": "dan.selectTestTargets",
         "title": "dan: Select test targets"
       },
@@ -83,7 +87,7 @@
       "properties": {
         "dan.buildFolder": {
           "type": "string",
-          "default": "build-${toolchain}",
+          "default": "build-${toolchain}-${buildType}",
           "description": "Specify in which folder dan build configure and build the project."
         },
         "dan.configureOptions": {
@@ -168,6 +172,11 @@
         },
         {
           "command": "dan.selectBuildTargets",
+          "when": "inDanProject",
+          "group": "dan:build"
+        },
+        {
+          "command": "dan.selectBuildType",
           "when": "inDanProject",
           "group": "dan:build"
         },

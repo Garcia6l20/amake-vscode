@@ -33,12 +33,16 @@ export async function codeCommand<T>(ext: Dan, fn: string, ...args: string[]): P
     });
     let rc = await stream.finished();
     if (rc !== 0) {
-        throw Error(`dan: ${fn} failed: ${data}`);
+        const msg = `dan: ${fn} failed: ${data}`;
+        console.error(msg);
+        throw Error(msg);
     } else {
         try {
             return JSON.parse(data) as T;
         } catch (e) {
-            throw Error(`dan: ${fn} failed to parse output: ${data}`);
+            const msg = `dan: ${fn} failed to parse output: ${data}`;
+            console.error(msg);
+            throw Error(msg);
         }
     }
 }
@@ -72,6 +76,7 @@ export async function configure(ext: Dan) {
             args.push('-s', `${key}=${value}`);
         }
     }
+    args.push('-s', `build_type=${ext.buildType}`);
     const options = ext.getConfig<Object>('options');
     if (options !== undefined) {
         for (const [key, value] of Object.entries(options)) {

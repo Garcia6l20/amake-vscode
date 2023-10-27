@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as cp from "child_process";
 
-function  processBuffer(data: Buffer, isError: boolean, fn: (line: string, isError: boolean) => void) {
+function  processBuffer(data: any, isError: boolean, fn: (line: string, isError: boolean) => void) {
     for (let line of data.toString().split(/\r?\n|\r/)) {
         line = line.trim();
         if (line.length > 0) {
@@ -18,8 +18,8 @@ export class Stream {
     }
 
     onLine(fn: (line: string, isError: boolean) => void) {
-        this.proc.stdout?.on("data", (data: Buffer) => processBuffer(data, false, fn));
-        this.proc.stderr?.on("data", (data: Buffer) => processBuffer(data, true, fn));
+        this.proc.stdout?.on("data", (chunk: any) => processBuffer(chunk, false, fn));
+        this.proc.stderr?.on("data", (chunk: any) => processBuffer(chunk, true, fn));
     }
     kill(signal?: NodeJS.Signals) {
         this.proc.kill(signal || "SIGTERM");

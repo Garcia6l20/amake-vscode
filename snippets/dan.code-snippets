@@ -1,0 +1,32 @@
+{
+	"Add Test": {
+		"scope": "python",
+		"prefix": ["test", "c++-test"],
+		"body": [
+			"class ${1/(.*)/${1:/pascalcase}/}Test(Test, Executable):",
+			"	name = '${1}-test'",
+			"	dependencies = [$0]"
+		],
+		"description": "Add c++ test"
+	},
+	"Add Library": {
+		"scope": "python",
+		"prefix": ["lib", "c++-lib"],
+		"body": [
+			"class ${1/(.*)/${1:/pascalcase}/}(Library):",
+			"	name = '${1}'",
+			"	dependencies = [$0]"
+		],
+		"description": "Add c++ library"
+	},
+	"Add Library": {
+		"scope": "python",
+		"prefix": ["exe", "c++-exe"],
+		"body": [
+			"class ${1/(.*)/${1:/pascalcase}/}(Executable):",
+			"	name = '${1}'",
+			"	dependencies = [$0]"
+		],
+		"description": "Add c++ executable"
+	}
+}

@@ -19,6 +19,12 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "snippets": [
+      {
+        "language": "python",
+        "path": "./snippets/dan.code-snippets"
+      }
+    ],
     "commands": [
       {
         "command": "dan.scanToolchains",

@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
 import * as cp from "child_process";
+import * as sq from 'shell-quote';
+
+export function str2cmdline(str: string, env?: { readonly [key: string]: string | undefined }): Array<string> {
+	return sq.parse(str, env).map((e) => e.toString());
+};
 
 function  processBuffer(data: any, isError: boolean, fn: (line: string, isError: boolean) => void) {
     for (let line of data.toString().split(/\r?\n|\r/)) {

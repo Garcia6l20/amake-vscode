@@ -145,12 +145,15 @@ export async function clean(ext: Dan) {
     return channelExec('clean', [...baseArgs(ext), ...ext.buildTargets.map(t => t.fullname)], undefined, true, ext.projectRoot);
 }
 
-export async function run(ext: Dan) {
-    let args = baseArgs(ext);
+export async function run(ext: Dan, args?: string[]) {
+    let cmdArgs = baseArgs(ext);
     if (ext.launchTarget) {
-        args.push(ext.launchTarget.fullname);
+        cmdArgs.push(ext.launchTarget.fullname);
     }
-    return channelExec('run', args, undefined, true, ext.projectRoot);
+    if (args) {
+        cmdArgs.push(...args);
+    }
+    return channelExec('run', cmdArgs, undefined, true, ext.projectRoot);
 }
 
 export async function test(ext: Dan) {

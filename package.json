@@ -56,6 +56,10 @@
         "title": "dan: Executable arguments"
       },
       {
+        "command": "dan.debugWithArgs",
+        "title": "dan: Debug with args"
+      },
+      {
         "command": "dan.test",
         "title": "dan: Test"
       },
@@ -160,6 +164,11 @@
       {
         "key": "f5",
         "command": "dan.debug",
+        "when": "!inDebugMode && inDanProject"
+      },
+      {
+        "key": "ctrl+f5",
+        "command": "dan.debugWithArgs",
         "when": "!inDebugMode && inDanProject"
       },
       {

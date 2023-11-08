@@ -369,7 +369,10 @@ export class Dan implements vscode.Disposable {
 
 			let args = str2cmdline(this.launchTargetArguments[this.launchTarget.fullname] ?? "", {
 				workspaceFolder: this.workspaceFolder.uri.fsPath,
-				projectRoot: this.projectRoot,
+				rootFolder: this.projectRoot,
+				buildFolder: this.buildPath,
+				targetSrcFolder: this.launchTarget.srcPath,
+				targetBuildFolder: this.launchTarget.buildPath,
 			});
 			await debuggerModule.debug(this.launchTarget, args);
 		}
@@ -380,9 +383,11 @@ export class Dan implements vscode.Disposable {
 		await commands.test(this);
 	}
 
-	async executableArguments() {
-		const target = await this.promptLaunchTarget(false);
-		if (target === undefined) { return; }
+	async executableArguments(target?: string) {
+		if (!target) {
+			target = await this.promptLaunchTarget(false);
+		}
+		if (!target) { return; }
 		const args = await vscode.window.showInputBox({
 			title: `Set ${target} arguments`,
 			value: this.launchTargetArguments[target]
@@ -390,6 +395,11 @@ export class Dan implements vscode.Disposable {
 		if (args === undefined) { return; }
 		this.launchTargetArguments[target] = args;
 		this.extensionContext.workspaceState.update('launchTargetArguments', this.launchTargetArguments);
+	}
+
+	async debugWithArgs() {
+		await this.executableArguments(this.launchTarget?.fullname);
+		await this.debug();
 	}
 
 	async registerCommands() {
@@ -417,6 +427,7 @@ export class Dan implements vscode.Disposable {
 		register('selectToolchain', async () => this.selectToolchain());
 		register('currentToolchain', async () => this.currentToolchain());
 		register('executableArguments', async () => this.executableArguments());
+		register('debugWithArgs', async () => this.debugWithArgs());
 	}
 
 	async initTestExplorer() {

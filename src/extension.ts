@@ -200,14 +200,24 @@ export class Dan implements vscode.Disposable {
 				pick.hide();
 			});
 			pick.onDidHide(() => {
-				res(pick.selectedItems.map(pt => pt.target));
+				if (pick.selectedItems.length === 0) {
+					rej();
+				} else {
+					if (pick.selectedItems.length === this.targets.length) {
+						res([]); // aka.: all
+					} else {
+						res(pick.selectedItems.map(pt => pt.target));
+					}
+				}
 			});
 		});
-		targets = await promise;
-		pick.dispose();
-		this.buildTargets = targets;
-		this.buildTargetsChanged.fire(this.buildTargets);
-		return this.buildTargets;
+		try {
+			targets = await promise;
+			this.buildTargets = targets;
+			this.buildTargetsChanged.fire(this.buildTargets);
+		} finally {
+			return this.buildTargets;
+		}
 	}
 
 	async promptTests() {

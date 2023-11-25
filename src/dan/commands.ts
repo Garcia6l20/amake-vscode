@@ -126,19 +126,23 @@ export async function build(ext: Dan, targets: Target[] | string[] = [], debug =
         }));
     }
     if (debug) {
-        const cfg: PythonDebugConfiguration = {
-            name: 'dan build',
-            type: 'python',
-            request: 'launch',
-            module: 'dan',
-            justMyCode: ext.getConfig<boolean>('pythonDebugJustMyCode'),
-            args: ['build', ...args],
-            cwd: ext.projectRoot
-        };
-        await vscode.debug.startDebugging(undefined, cfg);
+        await debugExec(ext, ['build', ...args]);
     } else {
         await channelExec('code', ['build', ...args], undefined, true, ext.projectRoot, ext.buildDiagnosics);
     }
+}
+
+export async function debugExec(ext: Dan, args: string[]) {
+    const cfg: PythonDebugConfiguration = {
+        name: 'dan build',
+        type: 'python',
+        request: 'launch',
+        module: 'dan',
+        justMyCode: ext.getConfig<boolean>('pythonDebugJustMyCode'),
+        args: args,
+        cwd: ext.projectRoot
+    };
+    await vscode.debug.startDebugging(undefined, cfg);
 }
 
 export async function clean(ext: Dan) {

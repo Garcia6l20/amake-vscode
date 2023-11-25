@@ -13,7 +13,7 @@
 				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"env": {
-				"PYTHONPATH": "${workspaceFolder}/.."
+				"PYTHONPATH": "${workspaceFolder}/../dan"
 			},
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"

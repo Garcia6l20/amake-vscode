@@ -2,7 +2,7 @@
   "name": "dan",
   "displayName": "dan",
   "description": "Python-based build system",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "repository": {
     "type": "git",
     "url": "https://github.com/Garcia6l20/dan-vscode"
@@ -50,6 +50,10 @@
       {
         "command": "dan.debug",
         "title": "dan: Debug"
+      },
+      {
+        "command": "dan.commandDebug",
+        "title": "dan: Debug dan command"
       },
       {
         "command": "dan.executableArguments",
@@ -174,6 +178,11 @@
       {
         "key": "shift+f5",
         "command": "dan.run",
+        "when": "!inDebugMode && inDanProject"
+      },
+      {
+        "key": "ctrl+shift+f5",
+        "command": "dan.commandDebug",
         "when": "!inDebugMode && inDanProject"
       }
     ],

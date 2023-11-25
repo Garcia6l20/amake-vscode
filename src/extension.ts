@@ -54,6 +54,7 @@ export class Dan implements vscode.Disposable {
 	targets: Target[];
 	launchTarget: Target | undefined = undefined;
 	launchTargetArguments: StringMap = {};
+	_debugCommandArguments: string = "configure";
 	_buildType: string = 'Debug';
 	buildTypeChanged = new vscode.EventEmitter<string>();
 	launchTargetChanged = new vscode.EventEmitter<Target | undefined>();
@@ -108,6 +109,7 @@ export class Dan implements vscode.Disposable {
 		});
 
 		this.launchTargetArguments = this.extensionContext.workspaceState.get<StringMap>('launchTargetArguments', this.launchTargetArguments);
+		this._debugCommandArguments = this.extensionContext.workspaceState.get<string>('debugCommandArguments', this._debugCommandArguments);
 
 		this._buildType = this.extensionContext.workspaceState.get<string>('buildType', 'Debug');
 		this.buildTypeChanged.fire(this.buildType);
@@ -354,17 +356,29 @@ export class Dan implements vscode.Disposable {
 		}
 	}
 
+	makeArgumentList(str: string) {
+		const testsIndex = str.indexOf('${selectedTests}');
+		if (testsIndex !== -1) {
+			str = str.replace('${selectedTests}', this.tests.join(' '));
+		}
+		let args = str2cmdline(str, {
+			workspaceFolder: this.workspaceFolder.uri.fsPath,
+			rootFolder: this.projectRoot,
+			buildFolder: this.buildPath,
+			launchTarget: this.launchTarget?.fullname,
+			targetSrcFolder: this.launchTarget?.srcPath,
+			targetBuildFolder: this.launchTarget?.buildPath,
+		});
+		return args;
+	}
+
 	async run() {
 		await this.ensureConfigured();
 		if (!this.launchTarget || !this.launchTarget.executable) {
 			await this.promptLaunchTarget();
 		}
 		if (this.launchTarget && this.launchTarget.executable) {
-
-			let args = str2cmdline(this.launchTargetArguments[this.launchTarget.fullname] ?? "", {
-				workspaceFolder: this.workspaceFolder.uri.fsPath,
-				projectRoot: this.projectRoot,
-			});
+			const args = this.makeArgumentList(this.launchTargetArguments[this.launchTarget.fullname] ?? "");
 			await commands.run(this, args);
 		}
 	}
@@ -376,14 +390,7 @@ export class Dan implements vscode.Disposable {
 		}
 		if (this.launchTarget && this.launchTarget.executable) {
 			await commands.build(this, [this.launchTarget]);
-
-			let args = str2cmdline(this.launchTargetArguments[this.launchTarget.fullname] ?? "", {
-				workspaceFolder: this.workspaceFolder.uri.fsPath,
-				rootFolder: this.projectRoot,
-				buildFolder: this.buildPath,
-				targetSrcFolder: this.launchTarget.srcPath,
-				targetBuildFolder: this.launchTarget.buildPath,
-			});
+			const args = this.makeArgumentList(this.launchTargetArguments[this.launchTarget.fullname] ?? "");
 			await debuggerModule.debug(this.launchTarget, args);
 		}
 	}
@@ -410,6 +417,24 @@ export class Dan implements vscode.Disposable {
 	async debugWithArgs() {
 		await this.executableArguments(this.launchTarget?.fullname);
 		await this.debug();
+	}
+	
+	async debugCommandArguments() {
+		const args = await vscode.window.showInputBox({
+			title: 'dan command arguments',
+			value: this._debugCommandArguments
+		});
+		if (args === undefined) { return; }
+		this._debugCommandArguments = args;
+		this.extensionContext.workspaceState.update('debugCommandArguments', this._debugCommandArguments);
+		return this._debugCommandArguments;
+	}
+
+	async commandDebug() {
+		const command = await this.debugCommandArguments();
+		if (command === undefined) { return; }
+		const args = this.makeArgumentList(command);
+		await commands.debugExec(this, args);
 	}
 
 	async registerCommands() {
@@ -438,6 +463,7 @@ export class Dan implements vscode.Disposable {
 		register('currentToolchain', async () => this.currentToolchain());
 		register('executableArguments', async () => this.executableArguments());
 		register('debugWithArgs', async () => this.debugWithArgs());
+		register('commandDebug', async () => this.commandDebug());
 	}
 
 	async initTestExplorer() {

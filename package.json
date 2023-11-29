@@ -2,7 +2,7 @@
   "name": "dan",
   "displayName": "dan",
   "description": "Python-based build system",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "repository": {
     "type": "git",
     "url": "https://github.com/Garcia6l20/dan-vscode"
@@ -122,11 +122,6 @@
           "type": "string",
           "description": "Specify the debugger executable to use",
           "default": null
-        },
-        "dan.verbose": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable verbose mode"
         },
         "dan.jobs": {
           "type": "integer",

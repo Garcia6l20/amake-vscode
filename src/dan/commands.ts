@@ -1,16 +1,12 @@
 import * as vscode from "vscode";
-import { channelExec, handleDiagnostics, Stream } from "./run";
+import { channelExec, handleDiagnostics, Stream, getLogArgs } from "./run";
 import { Dan } from "../extension";
 import { isTarget, Target } from "./targets";
 import { TestSuiteInfo, TestInfo } from "./testAdapter";
 import { DebuggerEnvironmentVariable } from "./debugger";
 
 export async function scanToolchains(ext: Dan) {
-    let args = [];
-    if (ext.getConfig<boolean>('verbose')) {
-        args.push('-v');
-    }
-    return channelExec('scan-toolchains');
+    return channelExec('scan-toolchains', getLogArgs());
 }
 
 const danBaseArgs = ['-m', 'dan'];
@@ -83,18 +79,13 @@ export async function configure(ext: Dan) {
             args.push('-o', `${key}=${value}`);
         }
     }
-    if (ext.getConfig<boolean>('verbose')) {
-        args.push('-v');
-    }
+    args.push(...getLogArgs());
     args.push('--toolchain', toolchain);
     return channelExec('configure', args, undefined, true, ext.projectRoot);
 }
 
 function baseArgs(ext: Dan): string[] {
-    let args = ['-B', ext.buildPath];
-    if (ext.getConfig<boolean>('verbose')) {
-        args.push('-v');
-    }
+    let args = ['-B', ext.buildPath, ...getLogArgs()];
     const jobs = ext.getConfig<number>('jobs');
     if (jobs !== undefined) {
         args.push('-j', jobs.toString());

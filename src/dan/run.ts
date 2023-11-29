@@ -3,10 +3,10 @@ import * as cp from "child_process";
 import * as sq from 'shell-quote';
 
 export function str2cmdline(str: string, env?: { readonly [key: string]: string | undefined }): Array<string> {
-	return sq.parse(str, env).map((e) => e.toString());
+    return sq.parse(str, env).map((e) => e.toString());
 };
 
-function  processBuffer(data: any, isError: boolean, fn: (line: string, isError: boolean) => void) {
+function processBuffer(data: any, isError: boolean, fn: (line: string, isError: boolean) => void) {
     for (let line of data.toString().split(/\r?\n|\r/)) {
         line = line.trim();
         if (line.length > 0) {
@@ -29,7 +29,7 @@ export class Stream {
     kill(signal?: NodeJS.Signals) {
         this.proc.kill(signal || "SIGTERM");
     }
-    private _onExit(code: number|null): number {
+    private _onExit(code: number | null): number {
         if (code === null) {
             if (this.proc.killed) {
                 return -1;
@@ -49,12 +49,27 @@ export class Stream {
     }
 }
 
-let _channel: vscode.OutputChannel;
-function getOutputChannel(): vscode.OutputChannel {
+let _channel: vscode.LogOutputChannel;
+function getOutputChannel(): vscode.LogOutputChannel {
     if (!_channel) {
-        _channel = vscode.window.createOutputChannel("dan");
+        _channel = vscode.window.createOutputChannel("dan", { log: true });
     }
     return _channel;
+}
+
+function getLogLevel(): vscode.LogLevel {
+    return getOutputChannel().logLevel;
+}
+
+export function getLogArgs(): string[] {
+    switch (getLogLevel()) {
+        case vscode.LogLevel.Trace:
+            return ['-vv'];
+        case vscode.LogLevel.Debug:
+            return ['-v'];
+        default:
+            return [];
+    }
 }
 
 export function handleDiagnostics(line: string, diagnostics: vscode.DiagnosticCollection | undefined): boolean {
@@ -72,17 +87,49 @@ export function handleDiagnostics(line: string, diagnostics: vscode.DiagnosticCo
     return false;
 }
 
+class LogStream {
+    readonly _expr = /\[([\d:.]+)\]\[(\w+)\]\s*(.+?):\s*(.+)/;
+
+    constructor(readonly output: vscode.LogOutputChannel) {
+    }
+
+    processLine(line: string) {
+        const m = this._expr.exec(line);
+        if (m) {
+            let out = this.output.info;
+            switch (m[2]) {
+                case 'DEBUG':
+                    out = this.output.debug;
+                    break;
+                case 'WARNING':
+                    out = this.output.warn;
+                    break;
+                case 'ERROR':
+                case 'CRITICAL':
+                    out = this.output.error;
+                    break;
+            }
+            out(`${m[3]}: ${m[4]}`);
+        } else {
+            this.output.appendLine(line);
+        }
+    }
+};
+
 export function channelExec(command: string,
     parameters: string[] = [],
     title: string | undefined = undefined,
     cancellable: boolean = true,
     cwd: string | undefined = undefined,
     diagnostics: vscode.DiagnosticCollection | undefined = undefined) {
+    const commandName = command === 'code' ? parameters[0] : command;
     let stream = new Stream('python', ['-m', 'dan', command, ...parameters], { cwd: cwd });
-    title = title ?? `Executing ${command} ${parameters.join(' ')}`;
+    title = title ?? `Executing ${commandName} ${parameters.join(' ')}`;
     const channel = getOutputChannel();
     channel.clear();
     channel.show();
+    channel.info('executing:', commandName);
+    channel.trace('command args:', ...parameters);
     diagnostics?.clear();
     return new Promise<void>((resolve, reject) => {
         vscode.window.withProgress(
@@ -95,8 +142,10 @@ export function channelExec(command: string,
                 token.onCancellationRequested(() => stream.kill());
                 let oldPercentage = 0;
                 progress.report({ message: 'running...', increment: 0 });
+                const barExpr = /(.+):\s+(\d+)%\|/;
+                const logStream = new LogStream(channel);
                 stream.onLine((line: string, isError) => {
-                    const barmatch = /(.+):\s+(\d+)%\|/g.exec(line);
+                    const barmatch = barExpr.exec(line);
                     if (barmatch) {
                         const percentage = parseInt(barmatch[2]);
                         const increment = percentage - oldPercentage;
@@ -105,17 +154,19 @@ export function channelExec(command: string,
                             progress.report({ increment: increment, message: barmatch[1] });
                         }
                     } else if (!handleDiagnostics(line, diagnostics)) {
-                        channel.appendLine(line);
+                        logStream.processLine(line);
                     }
                 });
                 const rc = await stream.finished();
                 const statusStr = rc === 0 ? 'succeed' : 'failed';
                 progress.report({ increment: 100 - oldPercentage, message: statusStr });
-                channel.appendLine(`${command} ${statusStr}`);
                 if (rc !== 0) {
-                    vscode.window.showErrorMessage(`dan: ${command} ${statusStr}: see output log`);
+                    channel.error(`command: ${commandName} failed`);
+                    vscode.window.showErrorMessage(`dan: ${commandName} ${statusStr}: see output log`);
+                    channel.show();
                     reject();
                 } else {
+                    channel.info(`command: ${commandName} succeed`);
                     resolve();
                 }
             }

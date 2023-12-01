@@ -88,13 +88,14 @@ export function handleDiagnostics(line: string, diagnostics: vscode.DiagnosticCo
 }
 
 class LogStream {
-    readonly _expr = /\[([\d:.]+)\]\[(\w+)\]\s*(.+?):\s*(.+)/;
+    static readonly _expr = /\[([\d:.]+)\]\[(\w+)\]\s*(.+?):\s*(.+)/;
+    static readonly _sequenceExpr = /\x1b\[./;
 
     constructor(readonly output: vscode.LogOutputChannel) {
     }
 
     processLine(line: string) {
-        const m = this._expr.exec(line);
+        const m = LogStream._expr.exec(line);
         if (m) {
             let out = this.output.info;
             switch (m[2]) {
@@ -111,12 +112,83 @@ class LogStream {
             }
             out(`${m[3]}: ${m[4]}`);
         } else {
-            this.output.appendLine(line);
+            if (!LogStream._sequenceExpr.exec(line)) {
+                this.output.appendLine(line);
+            }
         }
     }
 };
 
-export function channelExec(command: string,
+class ProgressBar implements vscode.Disposable {
+    private bar;
+    private progress?: vscode.Progress<{ message?: string; increment?: number }>;
+    private token?: vscode.CancellationToken;
+    private done: Promise<boolean>;
+    private resolve?: ((value: boolean) => void);
+    private reject?: (() => void);
+    private currentPercentage = 0;
+
+    constructor(title?: string, cancellable: boolean = false) {
+        this.done = new Promise((resolve, reject) => {
+            this.resolve = resolve;
+            this.reject = reject;
+        });
+        this.bar = vscode.window.withProgress({
+            title: title,
+            cancellable: cancellable,
+            location: vscode.ProgressLocation.Notification,
+        },
+            async (progress, token) => {
+                this.progress = progress;
+                this.token = token;
+                await this.done;
+            });
+    }
+
+    dispose() {
+        this.resolve?.(true);
+    }
+
+    public onCancellationRequested(callback: () => any) {
+        this.token?.onCancellationRequested(callback);
+    }
+
+    public report(percentage?: number, message?: string) {
+        let increment = undefined;
+        if (percentage !== undefined) {
+            increment = percentage - this.currentPercentage;
+            this.currentPercentage = percentage;
+        }
+        this.progress?.report({ message: message, increment: increment });
+        if (percentage !== undefined && percentage >= 100) {
+            this.dispose();
+        }
+    }
+};
+
+class ProgressSet implements vscode.Disposable {
+    private bars: { [id: number]: ProgressBar } = {};
+    private onCancel: (() => any) | undefined = undefined;
+    public get(id: number, title: string | undefined = undefined, cancellable: boolean = false) {
+        if (!(id in this.bars)) {
+            this.bars[id] = new ProgressBar(title, cancellable);
+        }
+        return this.bars[id];
+    }
+    public onCancellationRequested(callback: () => any) {
+        this.onCancel = callback;
+        for (let id in this.bars) {
+            this.bars[id].onCancellationRequested(this.onCancel);
+        }
+    }
+    dispose() {
+        for (let id in this.bars) {
+            this.bars[id].dispose();
+        }
+    }
+};
+
+export async function channelExec(command: string,
     parameters: string[] = [],
     title: string | undefined = undefined,
     cancellable: boolean = true,
@@ -131,47 +203,40 @@ export function channelExec(command: string,
     channel.info('executing:', commandName);
     channel.trace('command args:', ...parameters);
     diagnostics?.clear();
-    return new Promise<void>((resolve, reject) => {
-        vscode.window.withProgress(
-            {
-                title: title,
-                location: vscode.ProgressLocation.Notification,
-                cancellable: cancellable,
-            },
-            async (progress, token) => {
-                token.onCancellationRequested(() => stream.kill());
-                let oldPercentage = 0;
-                progress.report({ message: 'running...', increment: 0 });
-                const barExpr = /(.+):\s+(\d+)%\|/;
-                const logStream = new LogStream(channel);
-                stream.onLine((line: string, isError) => {
-                    const barmatch = barExpr.exec(line);
-                    if (barmatch) {
-                        const percentage = parseInt(barmatch[2]);
-                        const increment = percentage - oldPercentage;
-                        oldPercentage = percentage;
-                        if (increment > 0) {
-                            progress.report({ increment: increment, message: barmatch[1] });
-                        }
-                    } else if (!handleDiagnostics(line, diagnostics)) {
-                        logStream.processLine(line);
-                    }
-                });
-                const rc = await stream.finished();
-                const statusStr = rc === 0 ? 'succeed' : 'failed';
-                progress.report({ increment: 100 - oldPercentage, message: statusStr });
-                if (rc !== 0) {
-                    channel.error(`command: ${commandName} failed`);
-                    vscode.window.showErrorMessage(`dan: ${commandName} ${statusStr}: see output log`);
-                    channel.show();
-                    reject();
-                } else {
-                    channel.info(`command: ${commandName} succeed`);
-                    resolve();
-                }
+    const bars = new ProgressSet();
+    const mainBar = bars.get(0, title, cancellable); // init main bar
+    bars.onCancellationRequested(() => stream.kill());
+
+    let oldPercentage = 0;
+    mainBar.report(0, 'running...');
+    const barExpr = /(\d+)-(.+):\s+(?:(\d+?)%\|.+?\|)?\s*(.+?)\s\[(.+?)\]/;
+    const logStream = new LogStream(channel);
+    stream.onLine((line: string, isError) => {
+        const barmatch = barExpr.exec(line);
+        if (barmatch) {
+            const id = parseInt(barmatch[1]);
+            let percentage = undefined;
+            if (barmatch[3]) {
+                percentage = parseInt(barmatch[3]);
             }
-        );
+            const bar = bars.get(id);
+            bar.report(percentage, `${barmatch[2]} - ${barmatch[4]} [${barmatch[5]}]`);
+        } else if (!handleDiagnostics(line, diagnostics)) {
+            logStream.processLine(line);
+        }
     });
+    const rc = await stream.finished();
+    const statusStr = rc === 0 ? 'succeed' : 'failed';
+    mainBar.report(100, statusStr);
+    bars.dispose();
+    if (rc !== 0) {
+        channel.error(`command: ${commandName} failed`);
+        vscode.window.showErrorMessage(`dan: ${commandName} ${statusStr}: see output log`);
+        channel.show();
+        throw Error(`command: ${commandName} failed`);
+    } else {
+        channel.info(`command: ${commandName} succeed`);
+    }
 }
 
 function getTerminal(): vscode.Terminal {

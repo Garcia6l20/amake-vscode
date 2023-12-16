@@ -87,38 +87,6 @@ export function handleDiagnostics(line: string, diagnostics: vscode.DiagnosticCo
     return false;
 }
 
-class LogStream {
-    static readonly _expr = /\[([\d:.]+)\]\[(\w+)\]\s*(.+?):\s*(.+)/;
-    static readonly _sequenceExpr = /\x1b\[./;
-
-    constructor(readonly output: vscode.LogOutputChannel) {
-    }
-
-    processLine(line: string) {
-        const m = LogStream._expr.exec(line);
-        if (m) {
-            let out = this.output.info;
-            switch (m[2]) {
-                case 'DEBUG':
-                    out = this.output.debug;
-                    break;
-                case 'WARNING':
-                    out = this.output.warn;
-                    break;
-                case 'ERROR':
-                case 'CRITICAL':
-                    out = this.output.error;
-                    break;
-            }
-            out(`${m[3]}: ${m[4]}`);
-        } else {
-            if (!LogStream._sequenceExpr.exec(line)) {
-                this.output.appendLine(line);
-            }
-        }
-    }
-};
-
 class ProgressBar implements vscode.Disposable {
     private bar;
     private progress?: vscode.Progress<{ message?: string; increment?: number }>;
@@ -127,14 +95,16 @@ class ProgressBar implements vscode.Disposable {
     private resolve?: ((value: boolean) => void);
     private reject?: (() => void);
     private currentPercentage = 0;
+    private onDone?: ((bar: ProgressBar) => void);
 
-    constructor(title?: string, cancellable: boolean = false) {
+    constructor(readonly id: string, cancellable: boolean = false, onDone?: (bar: ProgressBar) => void) {
+        this.onDone = onDone;
         this.done = new Promise((resolve, reject) => {
             this.resolve = resolve;
             this.reject = reject;
         });
         this.bar = vscode.window.withProgress({
-            title: title,
+            title: id,
             cancellable: cancellable,
             location: vscode.ProgressLocation.Notification,
         },
@@ -142,11 +112,13 @@ class ProgressBar implements vscode.Disposable {
                 this.progress = progress;
                 this.token = token;
                 await this.done;
+                console.debug(`${this.id} terminated`);
             });
     }
 
     dispose() {
         this.resolve?.(true);
+        this.onDone?.(this);
     }
 
     public onCancellationRequested(callback: () => any) {
@@ -155,7 +127,7 @@ class ProgressBar implements vscode.Disposable {
 
     public report(percentage?: number, message?: string) {
         let increment = undefined;
-        if (percentage !== undefined) {
+        if (percentage !== undefined && !Number.isNaN(percentage)) {
             increment = percentage - this.currentPercentage;
             this.currentPercentage = percentage;
         }
@@ -167,13 +139,26 @@ class ProgressBar implements vscode.Disposable {
 };
 
 class ProgressSet implements vscode.Disposable {
-    private bars: { [id: number]: ProgressBar } = {};
+    private bars: { [id: string]: ProgressBar } = {};
     private onCancel: (() => any) | undefined = undefined;
-    public get(id: number, title: string | undefined = undefined, cancellable: boolean = false) {
+    public get(id: string, cancellable: boolean = false) {
         if (!(id in this.bars)) {
-            this.bars[id] = new ProgressBar(title, cancellable);
+            this.bars[id] = new ProgressBar(id, cancellable, (bar: ProgressBar) => this.barTerminated(bar));
         }
         return this.bars[id];
+    }
+    public clear(id: string) {
+        if (id in this.bars) {
+            this.bars[id].dispose();
+        }
+    }
+    private barTerminated(bar: ProgressBar) {
+        for (let id in this.bars) {
+            if (this.bars[id] === bar) {
+                delete this.bars[id];
+                return;
+            }
+        }
     }
     public onCancellationRequested(callback: () => any) {
         this.onCancel = callback;
@@ -188,6 +173,69 @@ class ProgressSet implements vscode.Disposable {
     }
 };
 
+class LogStream implements vscode.Disposable {
+    static readonly _expr = /\[([\d:.]+)\]\[(\w+)\]\s*(.+?):\s*(.+)?/;
+    static readonly _progressExpr = /(.+) - (.+)\/(.+)/;
+    static readonly _sequenceExpr = /\x1b\[./;
+    
+    public bars = new ProgressSet();
+
+    constructor(readonly output: vscode.LogOutputChannel) {
+    }
+
+    dispose() {
+        this.bars.dispose();
+    }
+
+    processLine(line: string) {
+        const [m, ts, level, id, msg] = LogStream._expr.exec(line) || [];
+        if (m) {
+            let out = this.output.info;
+            switch (level) {
+                case 'DEBUG':
+                    out = this.output.debug;
+                    break;
+                case 'WARNING':
+                    out = this.output.warn;
+                    break;
+                case 'STATUS':
+                    // this.bars.clear(id);
+                    return;
+                case 'PROGRESS':
+                    {
+                        const [bm, pmsg, nStr, totStr] = LogStream._progressExpr.exec(msg) || [];
+                        if (bm) {
+                            if (nStr === 'done') {
+                                this.bars.clear(id);
+                            } else {
+                                const bar = this.bars.get(id);
+                                const n = parseInt(nStr);
+                                const total = parseInt(totStr);
+                                let progress = undefined;
+                                if (total > 0) {
+                                    progress = 100 * n / total;
+                                }
+                                bar.report(progress, pmsg);
+                            }
+                        } else {
+                            console.debug('non matching progress');
+                        }
+                    }
+                    return;
+                case 'ERROR':
+                case 'CRITICAL':
+                    out = this.output.error;
+                    break;
+            }
+            out(`${id}: ${msg}`);
+        } else {
+            if (!LogStream._sequenceExpr.exec(line)) {
+                this.output.appendLine(line);
+            }
+        }
+    }
+};
+
 export async function channelExec(command: string,
     parameters: string[] = [],
     title: string | undefined = undefined,
@@ -195,7 +243,7 @@ export async function channelExec(command: string,
     cwd: string | undefined = undefined,
     diagnostics: vscode.DiagnosticCollection | undefined = undefined) {
     const commandName = command === 'code' ? parameters[0] : command;
-    let stream = new Stream('python', ['-m', 'dan', command, ...parameters], { cwd: cwd });
+    let stream = new Stream('python', ['-u', '-m', 'dan', command, ...parameters], { cwd: cwd });
     title = title ?? `Executing ${commandName} ${parameters.join(' ')}`;
     const channel = getOutputChannel();
     channel.clear();
@@ -203,32 +251,18 @@ export async function channelExec(command: string,
     channel.info('executing:', commandName);
     channel.trace('command args:', ...parameters);
     diagnostics?.clear();
-    const bars = new ProgressSet();
-    const mainBar = bars.get(0, title, cancellable); // init main bar
-    bars.onCancellationRequested(() => stream.kill());
-
-    let oldPercentage = 0;
-    mainBar.report(0, 'running...');
     const barExpr = /(\d+)-(.+):\s+(?:(\d+?)%\|.+?\|)?\s*(.+?)\s\[(.+?)\]/;
     const logStream = new LogStream(channel);
+    logStream.bars.get('make', true);
+    logStream.bars.onCancellationRequested(() => stream.kill());
     stream.onLine((line: string, isError) => {
-        const barmatch = barExpr.exec(line);
-        if (barmatch) {
-            const id = parseInt(barmatch[1]);
-            let percentage = undefined;
-            if (barmatch[3]) {
-                percentage = parseInt(barmatch[3]);
-            }
-            const bar = bars.get(id);
-            bar.report(percentage, `${barmatch[2]} - ${barmatch[4]} [${barmatch[5]}]`);
-        } else if (!handleDiagnostics(line, diagnostics)) {
+        if (!handleDiagnostics(line, diagnostics)) {
             logStream.processLine(line);
         }
     });
     const rc = await stream.finished();
     const statusStr = rc === 0 ? 'succeed' : 'failed';
-    mainBar.report(100, statusStr);
-    bars.dispose();
+    logStream.dispose();
     if (rc !== 0) {
         channel.error(`command: ${commandName} failed`);
         vscode.window.showErrorMessage(`dan: ${commandName} ${statusStr}: see output log`);

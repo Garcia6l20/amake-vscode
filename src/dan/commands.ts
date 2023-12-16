@@ -9,7 +9,7 @@ export async function scanToolchains(ext: Dan) {
     return channelExec('scan-toolchains', getLogArgs());
 }
 
-const danBaseArgs = ['-m', 'dan'];
+const danBaseArgs = ['-u', '-m', 'dan'];
 const codeInterfaceArgs = [...danBaseArgs, 'code'];
 
 export async function codeCommand<T>(ext: Dan, fn: string, ...args: string[]): Promise<T> {
@@ -137,7 +137,7 @@ export async function debugExec(ext: Dan, args: string[]) {
 }
 
 export async function clean(ext: Dan) {
-    return channelExec('clean', [...baseArgs(ext), ...ext.buildTargets.map(t => t.fullname)], undefined, true, ext.projectRoot);
+    return channelExec('clean', ['--no-status', ...baseArgs(ext), ...ext.buildTargets.map(t => t.fullname)], undefined, true, ext.projectRoot);
 }
 
 export async function run(ext: Dan, args?: string[]) {

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Dan } from './extension';
 import { Target } from './dan/targets';
+import { Context } from './dan/configuration';
 
 // Button class
 abstract class Button {
@@ -175,18 +176,18 @@ class SelectLaunchTargetButton extends Button {
     }
 }
 
-class SelectBuildTypeButton extends Button {
-    constructor(ext: Dan, protected readonly priority: number) {
-        super(priority);
-        this.command = 'dan.selectBuildType';
-        this.text = 'debug';
-        this.tooltip = 'Select build type';
-        ext.buildTypeChanged.event((type: string) => {
-            this.text = type;
-            this.update();
-        });
-    }
-}
+// class SelectBuildTypeButton extends Button {
+//     constructor(ext: Dan, protected readonly priority: number) {
+//         super(priority);
+//         this.command = 'dan.selectBuildType';
+//         this.text = 'debug';
+//         this.tooltip = 'Select build type';
+//         ext.buildTypeChanged.event((type: string) => {
+//             this.text = type;
+//             this.update();
+//         });
+//     }
+// }
 
 class SelectBuildTargetsButton extends Button {
     constructor(ext: Dan, protected readonly priority: number) {
@@ -226,14 +227,27 @@ class SelectTestTargetsButton extends Button {
     }
 }
 
-class SelectToolchainButton extends Button {
+// class SelectToolchainButton extends Button {
+//     constructor(ext: Dan, protected readonly priority: number) {
+//         super(priority);
+//         this.command = 'dan.selectToolchain';
+//         this.text = 'none';
+//         this.tooltip = 'Select toolchain';
+//         ext.currentToolchainChanged.event((toolchain: string|undefined) => {
+//             this.text = toolchain??'none';
+//             this.update();
+//         });
+//     }
+// }
+
+class SelectContextButton extends Button {
     constructor(ext: Dan, protected readonly priority: number) {
         super(priority);
-        this.command = 'dan.selectToolchain';
-        this.text = 'none';
-        this.tooltip = 'Select toolchain';
-        ext.currentToolchainChanged.event((toolchain: string|undefined) => {
-            this.text = toolchain??'none';
+        this.command = 'dan.selectCurrentContext';
+        this.text = ext.configuration.currentContext?.name ?? 'none';
+        this.tooltip = 'Select build context';
+        ext.configuration.onContextChanged((context?: Context) => {
+            this.text = context?.name ?? 'none';
             this.update();
         });
     }
@@ -244,8 +258,9 @@ export class StatusBar implements vscode.Disposable {
   private readonly _buttons: Button[];
   constructor(ext: Dan) {
     this._buttons = [
-        new SelectToolchainButton(ext, 1),
-        new SelectBuildTypeButton(ext, 0.95),
+        new SelectContextButton(ext, 1),
+        // new SelectToolchainButton(ext, 1),
+        // new SelectBuildTypeButton(ext, 0.95),
         new SelectLaunchTargetButton(ext, 0.9),
         new DebugButton(ext, 0.8),
         new LaunchButton(ext, 0.7),

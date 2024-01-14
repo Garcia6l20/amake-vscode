@@ -2,7 +2,7 @@
   "name": "dan",
   "displayName": "dan",
   "description": "Python-based build system",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Garcia6l20/dan-vscode"
@@ -76,10 +76,6 @@
         "title": "dan: Select build targets"
       },
       {
-        "command": "dan.selectBuildType",
-        "title": "dan: Select build type"
-      },
-      {
         "command": "dan.selectTestTargets",
         "title": "dan: Select test targets"
       },
@@ -92,12 +88,8 @@
         "title": "dan: Clear diagnostics"
       },
       {
-        "command": "dan.selectToolchain",
-        "title": "dan: Select toolchain"
-      },
-      {
-        "command": "dan.currentToolchain",
-        "title": "dan: Get current toolchains"
+        "command": "dan.selectCurrentContext",
+        "title": "dan: Select current context"
       }
     ],
     "configuration": {
@@ -105,8 +97,8 @@
       "properties": {
         "dan.buildFolder": {
           "type": "string",
-          "default": "build-${toolchain}-${buildType}",
-          "description": "Specify in which folder dan build configure and build the project."
+          "default": "build",
+          "description": "Specify in which folder dan build configures and builds the project."
         },
         "dan.configureOptions": {
           "type": "array",
@@ -195,11 +187,6 @@
         },
         {
           "command": "dan.selectBuildTargets",
-          "when": "inDanProject",
-          "group": "dan:build"
-        },
-        {
-          "command": "dan.selectBuildType",
           "when": "inDanProject",
           "group": "dan:build"
         },

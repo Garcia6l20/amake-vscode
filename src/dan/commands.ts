@@ -60,31 +60,7 @@ export async function getTestSuites(ext: Dan): Promise<TestSuiteInfo> {
     return codeCommand<TestSuiteInfo>(ext, 'get-test-suites');
 }
 
-export async function configure(ext: Dan) {
-    const toolchain = await ext.currentToolchain();
-    if (toolchain === undefined) {
-        return;
-    }
-    let args = ['-B', ext.buildPath, '-S', ext.projectRoot];
-    const settings = ext.getConfig<Object>('settings');
-    if (settings !== undefined) {
-        for (const [key, value] of Object.entries(settings)) {
-            args.push('-s', `${key}=${value}`);
-        }
-    }
-    args.push('-s', `build_type=${ext.buildType}`);
-    const options = ext.getConfig<Object>('options');
-    if (options !== undefined) {
-        for (const [key, value] of Object.entries(options)) {
-            args.push('-o', `${key}=${value}`);
-        }
-    }
-    args.push(...getLogArgs());
-    args.push('--toolchain', toolchain);
-    return channelExec('configure', args, undefined, true, ext.projectRoot);
-}
-
-function baseArgs(ext: Dan): string[] {
+export function baseArgs(ext: Dan): string[] {
     let args = ['-B', ext.buildPath, ...getLogArgs()];
     const jobs = ext.getConfig<number>('jobs');
     if (jobs !== undefined) {

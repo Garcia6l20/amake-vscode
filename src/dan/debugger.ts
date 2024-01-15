@@ -156,7 +156,8 @@ export async function debug(target: Target, args: string[] = []) {
         // never tested !!!
         debugConfig = await createMsvcDebugConfiguration(target);
     } else {
-        throw Error('Cannot resolve debugger path');
+        vscode.window.showInformationMessage('Cannot resolve debugger path (defaulted to gdb)');
+        debugConfig = await createGDBDebugConfiguration('gdb', target);
     }
     if (debugConfig) {
         if (args.length > 0) {

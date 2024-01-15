@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as os from 'os';
 import * as fs from 'fs';
 import { Dan } from '../extension';
 import * as commands from './commands';
@@ -48,6 +49,23 @@ export interface OptionDescription {
     default: string,
 };
 
+interface ToolchainConfig {
+    type: string,
+    version: string,
+    cc: string,
+    cxx: string,
+    arch: string,
+    system: string,
+    dbg?: string,
+
+    env: { [key: string]: string },
+};
+
+interface ToolchainsConfig {
+    tools: { [name: string]: string };
+    toolchains: { [name: string]: ToolchainConfig };
+};
+
 function readAll(filePath: string): Promise<Buffer> {
     return new Promise((res, rej) => {
         fs.readFile(filePath, (err, data) => {
@@ -93,7 +111,8 @@ export interface Context {
 export class DanConfig {
     private settings: Settings | undefined;
     private options: { [context: string]: OptionDescription[] | undefined } = {};
-    private contextChangeEvent = new vscode.EventEmitter<Context|undefined>();
+    private contextChangeEvent = new vscode.EventEmitter<Context | undefined>();
+    private toolchainsConfig?: ToolchainsConfig;
 
     constructor(private readonly ext: Dan) {
     }
@@ -111,6 +130,19 @@ export class DanConfig {
                 await this.setCurrentContext(this.settings.current_context);
             } catch (err) {
                 console.error(err);
+            }
+        }
+        if (!this.toolchainsConfig) {
+            const configPath = path.join(os.homedir(), '.dan', 'toolchains.json');
+            if (fs.existsSync(configPath)) {
+                try {
+                    const data = await readAll(configPath);
+                    this.toolchainsConfig = JSON.parse(data.toString());
+                } catch (err) {
+                    console.error(err);
+                }
+            } else {
+                vscode.window.showErrorMessage('No toolchan found, please run "dan scan-toolchains" and reload vscode');
             }
         }
     }
@@ -146,6 +178,8 @@ export class DanConfig {
             toolchain: 'default',
             cxx: {
                 build_type: BuildType.debug, // eslint-disable-line
+                cxx_flags: new Array(), // eslint-disable-line
+                default_library_type: DefaultLibraryType.static, // eslint-disable-line
             } as ToolchainSettings,
         } as BuildSettings;
     }
@@ -279,7 +313,7 @@ export class DanConfig {
     }
 
     private _currentContext?: Context;
-    public get currentContext(): Context|undefined {
+    public get currentContext(): Context | undefined {
         if (!this.settings) {
             return undefined;
         }
@@ -302,11 +336,20 @@ export class DanConfig {
         }
     }
 
+    public get currentToolchainConfig() {
+        if (this.toolchainsConfig) {
+            const ctx = this.currentContext;
+            if (ctx) {
+                return this.toolchainsConfig?.toolchains[ctx.settings.toolchain];
+            }
+        }
+    }
+
     public get configured() {
         return !!this.settings;
     }
 
-    onContextChanged(callback: (c: Context|undefined) => void) {
+    onContextChanged(callback: (c: Context | undefined) => void) {
         this.contextChangeEvent.event(callback);
     }
 

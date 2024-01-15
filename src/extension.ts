@@ -3,8 +3,6 @@
 import * as vscode from 'vscode';
 import * as commands from './dan/commands';
 import * as debuggerModule from './dan/debugger';
-import * as path from 'path';
-import * as os from 'os';
 import { Target } from './dan/targets';
 import { StatusBar } from './status';
 import { DanTestAdapter } from './dan/testAdapter';
@@ -12,7 +10,6 @@ import { TestHub, testExplorerExtensionId } from 'vscode-test-adapter-api';
 import { Log, TestAdapterRegistrar } from 'vscode-test-adapter-util';
 import { CppToolsApi, Version, getCppToolsApi } from 'vscode-cpptools';
 import { ConfigurationProvider as CppToolsConfigurationProvider } from './cpptools';
-import { existsSync, readFileSync } from 'fs';
 import { str2cmdline } from './dan/run';
 import * as configuration from './dan/configuration';
 
@@ -29,19 +26,23 @@ export class Dan implements vscode.Disposable {
 	codeConfig: vscode.WorkspaceConfiguration;
 	workspaceFolder: vscode.WorkspaceFolder;
 	projectRoot: string;
+	
+	_debugCommandArguments: string = "configure";
+	
 	targets: Target[];
+
 	launchTarget?: Target;
 	launchTargetArguments: StringMap = {};
-	_debugCommandArguments: string = "configure";
-	_buildType: string = 'Debug';
-	// buildTypeChanged = new vscode.EventEmitter<string>();
 	launchTargetChanged = new vscode.EventEmitter<Target | undefined>();
+	
 	buildTargets: Target[] = [];
 	buildTargetsChanged = new vscode.EventEmitter<Target[]>();
+	
 	tests: string[] = [];
 	testsChanged = new vscode.EventEmitter<string[]>();
-	// currentToolchainChanged = new vscode.EventEmitter<string | undefined>();
+	
 	buildDiagnosics: vscode.DiagnosticCollection;
+	
 	configuration: configuration.DanConfig;
 
 	private readonly _statusBar;
@@ -73,12 +74,6 @@ export class Dan implements vscode.Disposable {
 	}
 
 	private loadWorkspaceState() {
-		// this._toolchain = this.extensionContext.workspaceState.get('currentToolchain');
-		// this.currentToolchainChanged.fire(this._toolchain);
-		// this.currentToolchainChanged.event((value: string | undefined) => {
-		// 	this.extensionContext.workspaceState.update('currentToolchain', value);
-		// });
-
 		this.tests = this.extensionContext.workspaceState.get<string[]>('selectedTests') ?? [];
 		this.testsChanged.fire(this.tests);
 		this.testsChanged.event((value: string[]) => {
@@ -99,20 +94,10 @@ export class Dan implements vscode.Disposable {
 
 		this.launchTargetArguments = this.extensionContext.workspaceState.get<StringMap>('launchTargetArguments', this.launchTargetArguments);
 		this._debugCommandArguments = this.extensionContext.workspaceState.get<string>('debugCommandArguments', this._debugCommandArguments);
-
-		// this._buildType = this.extensionContext.workspaceState.get<string>('buildType', 'Debug');
-		// this.buildTypeChanged.fire(this.buildType);
-		// this.buildTypeChanged.event((value: string) => {
-		// 	this.extensionContext.workspaceState.update('buildType', value);
-		// });
 	}
 
 	getConfig<T>(name: string): T | undefined {
 		return this.codeConfig.get<T>(name);
-	}
-
-	get buildType(): string {
-		return this._buildType.toLocaleLowerCase().replace(' ', '_');
 	}
 
 	get buildPath(): string {
@@ -152,18 +137,6 @@ export class Dan implements vscode.Disposable {
 		this.tests = [];
 		this.testsChanged.fire(this.tests);
 	}
-
-	// async promptBuildType() {
-	// 	const types = ['Debug', 'Release', 'Release min size', 'Release debug infos'];
-	// 	let type = await vscode.window.showQuickPick(['Debug', 'Release', 'Release min size', 'Release debug infos']);
-	// 	if (type) {
-	// 		this._buildType = type;
-	// 		this.buildTypeChanged.fire(this.buildType);
-	// 		await this.configure();
-	// 		await this.invalidateConfig();
-	// 	}
-	// 	return this.buildType;
-	// }
 
 	async promptLaunchTarget(fireEvent: boolean = true) {
 		let targets = this.targets = await commands.getTargets(this);
@@ -238,11 +211,7 @@ export class Dan implements vscode.Disposable {
 		if (debuggerPath) {
 			return debuggerPath;
 		}
-		console.error('TODO');
-		// const config = await this.toolchainConfig();
-		// if (config !== undefined && 'dbg' in config) {
-		// 	return config['dbg'];
-		// }
+		return this.configuration.currentToolchainConfig?.dbg;
 	}
 
 	async ensureConfigured() {
@@ -270,13 +239,14 @@ export class Dan implements vscode.Disposable {
 			console.error('No currentContext');
 		}
 
-		// await commands.configure(this);
-		// this.notifyUpdated();
+		this.notifyUpdated();
 
-		// this.extensionContext.environmentVariableCollection.replace('DAN_BUILD_PATH', this.buildPath);
-		// if (this._toolchain !== undefined) {
-		// 	this.extensionContext.environmentVariableCollection.replace('DAN_TOOLCHAIN', this._toolchain);
-		// }
+		this.extensionContext.environmentVariableCollection.replace('DAN_BUILD_PATH', this.buildPath);
+		if (this.currentContext) {
+			this.extensionContext.environmentVariableCollection.replace('DAN_TOOLCHAIN', this.currentContext.settings.toolchain);
+		}
+
+		await this.invalidateConfig();
 	}
 
 	async selectCurrentContext() {
@@ -294,10 +264,9 @@ export class Dan implements vscode.Disposable {
 	}
 
 	async clean() {
-		console.error('TODO');
-		// if (this.config) {
-		// 	await commands.clean(this);
-		// }
+		if (this.configuration.configured) {
+			await commands.clean(this);
+		}
 	}
 
 	makeArgumentList(str: string) {

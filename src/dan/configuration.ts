@@ -170,12 +170,13 @@ export class DanConfig {
         args.push(...getLogArgs(), ...DanConfig.getSettingsArgs(buildSettings), ...DanConfig.getOptionsArgs(buildOptions));
         args.push('--toolchain', buildSettings.toolchain,
             context);
-        return channelExec('configure', args, undefined, true, this.ext.projectRoot);
+        await channelExec('configure', args, undefined, true, this.ext.projectRoot);
+        await this.reload();
     }
 
     defaultBuildSettings(): BuildSettings {
         return {
-            toolchain: 'default',
+            toolchain: 'undefined',
             cxx: {
                 build_type: BuildType.debug, // eslint-disable-line
                 cxx_flags: new Array(), // eslint-disable-line
@@ -187,8 +188,8 @@ export class DanConfig {
     buildSettings(context: string) {
         if (!this.settings) {
             this.settings = {
-                source_path: 'unknown', // eslint-disable-line
-                build_path: 'unknown', // eslint-disable-line
+                source_path: 'undefined', // eslint-disable-line
+                build_path: 'undefined', // eslint-disable-line
                 settings: {},
             } as Settings;
         }
@@ -213,6 +214,17 @@ export class DanConfig {
             };
             return new Pick();
         };
+
+        if (buildSettings.toolchain === 'undefined') {
+            const toolchains = await commands.getToolchains(this.ext);
+            const toolchain = await vscode.window.showQuickPick(toolchains, {
+                title: 'Select toolchain',
+            });
+            if (!toolchain) {
+                return;
+            }
+            buildSettings.toolchain = toolchain;
+        }
 
 
         while (true) {
@@ -353,6 +365,20 @@ export class DanConfig {
         this.contextChangeEvent.event(callback);
     }
 
+    async newConfiguration() {
+        let value = undefined;
+        if (!this.configured) {
+            value = 'default';
+        }
+        const newConfig = await vscode.window.showInputBox({
+            prompt: 'Enter new configuration name', 
+            value: value,
+        });
+        if (newConfig) {
+            await this.configureContext(newConfig);
+        }
+    }
+
     async uiConfiguration() {
 
         class ContextPickItem {
@@ -360,8 +386,6 @@ export class DanConfig {
         };
 
         while (true) {
-            await this.reload();
-
             let confContexts: string[] = this.contextNames ?? [];
 
             let pickItems = confContexts.map((label) => {

@@ -35,6 +35,10 @@
         "title": "dan: Configure"
       },
       {
+        "command": "dan.newConfig",
+        "title": "dan: New configuration"
+      },
+      {
         "command": "dan.build",
         "title": "dan: Build",
         "icon": "./res/icon-build.svg"

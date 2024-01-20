@@ -227,11 +227,14 @@ export class Dan implements vscode.Disposable {
 		}
 	}
 
-	async configure(ui = false) {
+	async configure(ui = false, newConfiguration = false) {
 		if (!this.configuration.configured) {
 			await this.configuration.reload();
+			newConfiguration = !this.configuration.configured;
 		}
-		if (ui || !this.configuration.configured) {
+		if (newConfiguration) {
+			await this.configuration.newConfiguration();
+		} else if (ui) {
 			await this.configuration.uiConfiguration();
 		} else if(this.currentContext) {
 			await this.configuration.doConfigure();
@@ -358,6 +361,7 @@ export class Dan implements vscode.Disposable {
 		};
 
 		register('scanToolchains', async () => commands.scanToolchains(this));
+		register('newConfig', async () => this.configure(true, true));
 		register('configure', async () => this.configure(true));
 		register('build', async () => this.build());
 		register('debugBuild', async () => this.build(true));

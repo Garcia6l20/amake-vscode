@@ -93,7 +93,9 @@ function objectToSettingsArgs<T extends Object>(obj: T, prefix?: string, filter?
     for (const key of settingsKeys) {
         const value = obj[key as SettingsKeyStrings];
         const settingPath = prefix ? `${prefix}.${key}` : key;
-        if (value instanceof Object) {
+        if (value instanceof Array) {
+            args.push('-s', `${settingPath}=${value.join(';')}`);
+        } else if (value instanceof Object) {
             args.push(...objectToSettingsArgs(value, settingPath));
         } else {
             args.push('-s', `${settingPath}=${value}`);

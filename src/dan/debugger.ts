@@ -71,14 +71,25 @@ export interface VSCodeDebugConfiguration extends CppDebugConfiguration {
 
 function createDebuggerEnv(debuggerPath: string, target: Target): DebuggerEnvironmentVariable[] {
     let paths = [path.dirname(debuggerPath)];
-    if (target.env !== undefined && target.env.PATH !== undefined) {
-        paths.push(...target.env.PATH.split(path.delimiter));
+    let ldLibraryPaths = [];
+    if (target.env !== undefined) {
+        if (target.env.PATH !== undefined) {
+            paths.push(...target.env.PATH.split(path.delimiter));
+        }
+        if (target.env.LD_LIBRARY_PATH !== undefined) {
+            ldLibraryPaths.push(...target.env.LD_LIBRARY_PATH.split(path.delimiter));
+        }
+
     }
     if (process.env.PATH !== undefined) {
         paths.push(...process.env.PATH.split(path.delimiter));
     }
+    if (process.env.LD_LIBRARY_PATH !== undefined) {
+        ldLibraryPaths.push(...process.env.LD_LIBRARY_PATH.split(path.delimiter));
+    }
     return [
         {name: 'PATH', value: paths.join(path.delimiter)},
+        {name: 'LD_LIBRARY_PATH', value: ldLibraryPaths.join(path.delimiter)},
     ];
 }
 

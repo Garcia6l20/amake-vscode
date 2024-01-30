@@ -94,7 +94,9 @@ function objectToSettingsArgs<T extends Object>(obj: T, prefix?: string, filter?
         const value = obj[key as SettingsKeyStrings];
         const settingPath = prefix ? `${prefix}.${key}` : key;
         if (value instanceof Array) {
-            args.push('-s', `${settingPath}=${value.join(';')}`);
+            if (value.length) {
+                args.push('-s', `${settingPath}=${value.join(';')}`);
+            }
         } else if (value instanceof Object) {
             args.push(...objectToSettingsArgs(value, settingPath));
         } else {
@@ -119,7 +121,7 @@ export class DanConfig {
     constructor(private readonly ext: Dan) {
     }
 
-    public async reload() {
+    public async reload(updateContext: boolean = true) {
         const configPath = path.join(this.ext.buildPath, 'dan.config.json');
         if (fs.existsSync(configPath)) {
             console.log('reloading dan configuration');
@@ -129,7 +131,9 @@ export class DanConfig {
                 for (const context in this.settings) {
                     this.options[context] = await commands.codeCommand<OptionDescription[]>(this.ext, 'get-options', context);
                 }
-                await this.setCurrentContext(this.settings.current_context);
+                if (updateContext) {
+                    await this.setCurrentContext(this.settings.current_context, false);
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -313,7 +317,7 @@ export class DanConfig {
         await this.doConfigure(context);
     }
 
-    async setCurrentContext(name: string) {
+    async setCurrentContext(name: string, reload: boolean = true) {
         if (!this.contextNames.includes(name)) {
             throw Error(`No such context ${name}`);
         }
@@ -323,6 +327,9 @@ export class DanConfig {
         this.settings.current_context = name;
         await channelExec('set', ['context', name], undefined, true, this.ext.projectRoot);
 
+        if (reload) {
+            await this.reload(false);
+        }
         this.contextChangeEvent.fire(this.currentContext);
     }
 

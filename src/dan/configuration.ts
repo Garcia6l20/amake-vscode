@@ -27,7 +27,7 @@ interface ToolchainSettings {
 
 interface BuildSettings {
     toolchain: string,
-    cxx: ToolchainSettings,
+    config: ToolchainSettings,
 
     // ingoring rest for now...
 };
@@ -121,12 +121,19 @@ export class DanConfig {
     constructor(private readonly ext: Dan) {
     }
 
+    get currentConfigPath() {
+        return path.join(this.ext.buildPath, 'dan.config.json');
+    }
+
+    get userConfigPath() {
+        return path.join(this.ext.projectRoot, 'dan-config.py');
+    }
+
     public async reload(updateContext: boolean = true) {
-        const configPath = path.join(this.ext.buildPath, 'dan.config.json');
-        if (fs.existsSync(configPath)) {
+        if (fs.existsSync(this.currentConfigPath)) {
             console.log('reloading dan configuration');
             try {
-                const data = await readAll(configPath);
+                const data = await readAll(this.currentConfigPath);
                 this.settings = JSON.parse(data.toString()) as Settings;
                 for (const context in this.settings) {
                     this.options[context] = await commands.codeCommand<OptionDescription[]>(this.ext, 'get-options', context);
@@ -163,6 +170,10 @@ export class DanConfig {
         }).flat();
     }
 
+    get baseConfigArgs() {
+        return ['-B', this.ext.buildPath, '-S', this.ext.projectRoot];
+    }
+
     async doConfigure(context?: string) {
         if (!context) {
             if (!this.settings) {
@@ -170,12 +181,15 @@ export class DanConfig {
             }
             context = this.settings.current_context;
         }
-        let args = ['-B', this.ext.buildPath, '-S', this.ext.projectRoot];
-        const buildSettings = this.settings?.settings[context] ?? this.defaultBuildSettings();
-        const buildOptions = this.options[context] ?? [];
-        args.push(...getLogArgs(), ...DanConfig.getSettingsArgs(buildSettings), ...DanConfig.getOptionsArgs(buildOptions));
-        args.push('--toolchain', buildSettings.toolchain,
-            context);
+        let args = this.baseConfigArgs;
+        if (context) {
+            const buildSettings = this.settings?.settings[context] ?? this.defaultBuildSettings();
+            const buildOptions = this.options[context] ?? [];
+            args.push(...getLogArgs(), ...DanConfig.getSettingsArgs(buildSettings), ...DanConfig.getOptionsArgs(buildOptions));
+            args.push('--toolchain', buildSettings.toolchain,
+                context);
+        }
+
         await channelExec('configure', args, undefined, true, this.ext.projectRoot);
         await this.reload();
     }
@@ -183,7 +197,7 @@ export class DanConfig {
     defaultBuildSettings(): BuildSettings {
         return {
             toolchain: 'undefined',
-            cxx: {
+            config: {
                 build_type: BuildType.debug, // eslint-disable-line
                 cxx_flags: new Array(), // eslint-disable-line
                 default_library_type: DefaultLibraryType.static, // eslint-disable-line
@@ -240,20 +254,20 @@ export class DanConfig {
                     const toolchains = await commands.getToolchains(this.ext);
                     buildSettings.toolchain = await vscode.window.showQuickPick(toolchains, { title: 'Select toolchain' }) ?? buildSettings.toolchain;
                 }),
-                makePicker('cxx', undefined, async () => {
+                makePicker('config', undefined, async () => {
                     while (true) {
-                        const cxxFlags = buildSettings.cxx.cxx_flags.join(' ');
+                        const cxxFlags = buildSettings.config.cxx_flags.join(' ');
                         let cxxPickItems = [
-                            makePicker('build type', buildSettings.cxx.build_type, async () => {
-                                buildSettings.cxx.build_type = await showQuickEnumPick(BuildType, { title: 'Select build type' }) ?? buildSettings.cxx.build_type;
+                            makePicker('build type', buildSettings.config.build_type, async () => {
+                                buildSettings.config.build_type = await showQuickEnumPick(BuildType, { title: 'Select build type' }) ?? buildSettings.config.build_type;
                             }),
                             makePicker('cxx flags', cxxFlags, async () => {
-                                buildSettings.cxx.cxx_flags = await showQuickStringListPick(buildSettings.cxx.cxx_flags);
+                                buildSettings.config.cxx_flags = await showQuickStringListPick(buildSettings.config.cxx_flags);
                             }),
-                            makePicker('default library type', buildSettings.cxx.default_library_type, async () => {
-                                buildSettings.cxx.default_library_type = await showQuickEnumPick(DefaultLibraryType, {
+                            makePicker('default library type', buildSettings.config.default_library_type, async () => {
+                                buildSettings.config.default_library_type = await showQuickEnumPick(DefaultLibraryType, {
                                     title: 'Select default library type',
-                                }) ?? buildSettings.cxx.default_library_type;
+                                }) ?? buildSettings.config.default_library_type;
                             }),
                         ];
                         const item = await vscode.window.showQuickPick(cxxPickItems, {
@@ -376,15 +390,22 @@ export class DanConfig {
 
     async newConfiguration() {
         let value = undefined;
-        if (!this.configured) {
-            value = 'default';
-        }
-        const newConfig = await vscode.window.showInputBox({
-            prompt: 'Enter new configuration name', 
-            value: value,
-        });
-        if (newConfig) {
-            await this.configureContext(newConfig);
+        if (fs.existsSync(this.userConfigPath)) {
+            vscode.window.showInformationMessage('Use user auto-configuration');
+            await channelExec('configure', this.baseConfigArgs, undefined, true, this.ext.projectRoot);
+            await this.reload();
+        } else {
+            if (!this.configured) {
+                value = 'default';
+            }
+            const newConfig = await vscode.window.showInputBox({
+                prompt: 'Enter new configuration name',
+                value: value,
+                ignoreFocusOut: true,
+            });
+            if (newConfig) {
+                await this.configureContext(newConfig);
+            }
         }
     }
 

@@ -21,7 +21,8 @@ enum DefaultLibraryType {
 
 interface ToolchainSettings {
     build_type: BuildType, // eslint-disable-line
-    cxx_flags: string[], // eslint-disable-line
+    compile_flags: string[], // eslint-disable-line
+    link_flags: string[], // eslint-disable-line
     default_library_type: DefaultLibraryType, // eslint-disable-line
 };
 
@@ -112,6 +113,31 @@ export interface Context {
     options: OptionDescription[],
 };
 
+
+function makeListPicker(label: string, values: string[]) {
+
+    class Pick implements vscode.QuickPickItem {
+        readonly label = label;
+        readonly description = values.join(' ');
+        async action() {
+            values = await showQuickStringListPick(values);
+        }
+    };
+    return new Pick();
+};
+
+function makeEnumPicker<E extends object>(label: string, value: any, enumObj: E) {
+
+    class Pick implements vscode.QuickPickItem {
+        readonly label = label;
+        readonly description = value.toString();
+        async action() {
+            value = await showQuickEnumPick(enumObj) ?? value;
+        }
+    };
+    return new Pick();
+}
+
 export class DanConfig {
     private settings: Settings | undefined;
     private options: { [context: string]: OptionDescription[] | undefined } = {};
@@ -199,7 +225,7 @@ export class DanConfig {
             toolchain: 'undefined',
             config: {
                 build_type: BuildType.debug, // eslint-disable-line
-                cxx_flags: new Array(), // eslint-disable-line
+                compile_flags: new Array(), // eslint-disable-line
                 default_library_type: DefaultLibraryType.static, // eslint-disable-line
             } as ToolchainSettings,
         } as BuildSettings;
@@ -256,19 +282,11 @@ export class DanConfig {
                 }),
                 makePicker('config', undefined, async () => {
                     while (true) {
-                        const cxxFlags = buildSettings.config.cxx_flags.join(' ');
                         let cxxPickItems = [
-                            makePicker('build type', buildSettings.config.build_type, async () => {
-                                buildSettings.config.build_type = await showQuickEnumPick(BuildType, { title: 'Select build type' }) ?? buildSettings.config.build_type;
-                            }),
-                            makePicker('cxx flags', cxxFlags, async () => {
-                                buildSettings.config.cxx_flags = await showQuickStringListPick(buildSettings.config.cxx_flags);
-                            }),
-                            makePicker('default library type', buildSettings.config.default_library_type, async () => {
-                                buildSettings.config.default_library_type = await showQuickEnumPick(DefaultLibraryType, {
-                                    title: 'Select default library type',
-                                }) ?? buildSettings.config.default_library_type;
-                            }),
+                            makeEnumPicker('build type', buildSettings.config.build_type, BuildType),
+                            makeListPicker('compile flags', buildSettings.config.compile_flags),
+                            makeListPicker('link flags', buildSettings.config.link_flags),
+                            makeEnumPicker('default library type', buildSettings.config.default_library_type, DefaultLibraryType),
                         ];
                         const item = await vscode.window.showQuickPick(cxxPickItems, {
                             title: `${context} cxx configuration`,

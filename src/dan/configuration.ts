@@ -143,8 +143,12 @@ export class DanConfig {
     private options: { [context: string]: OptionDescription[] | undefined } = {};
     private contextChangeEvent = new vscode.EventEmitter<Context | undefined>();
     private toolchainsConfig?: ToolchainsConfig;
+    private watcher: vscode.FileSystemWatcher;
+    private buildFiles: vscode.Uri[] = [];
 
     constructor(private readonly ext: Dan) {
+        this.watcher = vscode.workspace.createFileSystemWatcher("**/dan-build.py", true, false, true);
+        this.watcher.onDidChange(this.buildFileChanged, this);
     }
 
     get currentConfigPath() {
@@ -153,6 +157,13 @@ export class DanConfig {
 
     get userConfigPath() {
         return path.join(this.ext.projectRoot, 'dan-config.py');
+    }
+
+    private buildFileChanged(f: vscode.Uri) {
+        if (this.buildFiles.find(b => b.path === f.path)) {
+            console.debug(`${f.path} changed re-configuring`);
+            this.doConfigure();
+        }
     }
 
     public async reload(updateContext: boolean = true) {
@@ -167,6 +178,8 @@ export class DanConfig {
                 if (updateContext) {
                     await this.setCurrentContext(this.settings.current_context, false);
                 }
+                const buildFiles = await commands.codeCommand<string[]>(this.ext, 'get-buildfiles', '--context', this.settings.current_context);
+                this.buildFiles = buildFiles.map((p) => vscode.Uri.file(p));
             } catch (err) {
                 console.error(err);
             }

@@ -29,17 +29,14 @@ export class Dan implements vscode.Disposable {
 	
 	_debugCommandArguments: string = "configure";
 	
-	targets: Target[];
-
 	_launchTarget?: string;
 	launchTargetArguments: StringMap = {};
 	launchTargetChanged = new vscode.EventEmitter<Target | undefined>();
 	
 	_buildTargets: string[] = [];
-	// buildTargetsId?: string[] = [];
 	buildTargetsChanged = new vscode.EventEmitter<Target[]>();
-	
-	tests: string[] = [];
+
+	selectedTests: string[] = [];
 	testsChanged = new vscode.EventEmitter<string[]>();
 	
 	buildDiagnosics: vscode.DiagnosticCollection;
@@ -59,7 +56,6 @@ export class Dan implements vscode.Disposable {
 		} else {
 			throw new Error('Cannot resolve project root');
 		}
-		this.targets = [];
 		vscode.workspace.onDidChangeConfiguration((e: vscode.ConfigurationChangeEvent) => {
 			this.codeConfig = vscode.workspace.getConfiguration("dan");
 		});
@@ -68,6 +64,9 @@ export class Dan implements vscode.Disposable {
 		this._statusBar = new StatusBar(this);
 
 		this.loadWorkspaceState();
+		this.configuration.configChanged.event(async (config) => {
+			await this.reloadConfig();
+		});
 	}
 
 	public get currentContext() {
@@ -82,29 +81,29 @@ export class Dan implements vscode.Disposable {
 
 	getTargetById(id?: string): Target|undefined {
 		if (id) {
-			return this.targets.find((target: Target) => {
+			return this.configuration.targets.find((target: Target) => {
 				return this.getTargetId(target) === id;
 			});
 		}
 	}
 	
 	public get buildTargets() {
-		return this.targets.filter((target: Target) => {
+		return this.configuration.targets.filter((target: Target) => {
 			const id = this.getTargetId(target);
 			return this._buildTargets.includes(id!);
 		});
 	}
 
 	public get launchTarget() {
-		return this.targets.find((target: Target) => {
+		return this.configuration.executableTargets.find((target: Target) => {
 			const id = this.getTargetId(target);
 			return this._launchTarget === id;
 		});
 	}
 
 	private loadWorkspaceState() {
-		this.tests = this.extensionContext.workspaceState.get<string[]>('selectedTests') ?? [];
-		this.testsChanged.fire(this.tests);
+		this.selectedTests = this.extensionContext.workspaceState.get<string[]>('selectedTests') ?? [];
+		this.testsChanged.fire(this.selectedTests);
 		this.testsChanged.event((value: string[]) => {
 			this.extensionContext.workspaceState.update('selectedTests', value);
 		});
@@ -157,17 +156,15 @@ export class Dan implements vscode.Disposable {
 	async cleanup() {
 	}
 
-	async reloadConfig() {
-		this.targets = await commands.getTargets(this);
-		
+	async reloadConfig() {		
 		// fire events
 		this.launchTargetChanged.fire(this.launchTarget);
 		this.buildTargetsChanged.fire(this.buildTargets);
-		this.testsChanged.fire(this.tests);
+		this.testsChanged.fire(this.selectedTests);
 	}
 
 	async promptLaunchTarget(fireEvent: boolean = true) {
-		let targets = this.targets.filter(t => t.executable === true);
+		let targets = this.configuration.executableTargets;
 		targets.sort((l, r) => l.fullname < r.fullname ? -1 : 1);
 		let targetId = await vscode.window.showQuickPick(targets.map(t => this.getTargetId(t)!));
 		if (fireEvent && targetId) {
@@ -177,7 +174,7 @@ export class Dan implements vscode.Disposable {
 	}
 
 	async promptBuildTargets() {
-		let targets = this.targets;
+		let targets = this.configuration.targets;
 		targets.sort((l, r) => l.fullname < r.fullname ? -1 : 1);
 		let pick = vscode.window.createQuickPick<TargetPickItem>();
 		pick.canSelectMany = true;
@@ -191,7 +188,7 @@ export class Dan implements vscode.Disposable {
 				if (pick.selectedItems.length === 0) {
 					rej();
 				} else {
-					if (pick.selectedItems.length === this.targets.length) {
+					if (pick.selectedItems.length === this.configuration.targets.length) {
 						res([]); // aka.: all
 					} else {
 						res(pick.selectedItems.map(pt => pt.target));
@@ -209,7 +206,7 @@ export class Dan implements vscode.Disposable {
 	}
 
 	async promptTests() {
-		let tests = this.tests = await commands.getTests(this);
+		let tests = this.selectedTests = this.configuration.tests;
 		class TestPick {
 			constructor(public label: string) { }
 		};
@@ -227,9 +224,9 @@ export class Dan implements vscode.Disposable {
 		});
 		tests = await promise;
 		pick.dispose();
-		this.tests = tests;
-		this.testsChanged.fire(this.tests);
-		return this.tests;
+		this.selectedTests = tests;
+		this.testsChanged.fire(this.selectedTests);
+		return this.selectedTests;
 	}
 
 	async debuggerPath() {
@@ -274,8 +271,6 @@ export class Dan implements vscode.Disposable {
 		if (this.currentContext) {
 			this.extensionContext.environmentVariableCollection.replace('DAN_TOOLCHAIN', this.currentContext.settings.toolchain);
 		}
-
-		await this.reloadConfig();
 	}
 
 	async selectCurrentContext() {
@@ -283,7 +278,6 @@ export class Dan implements vscode.Disposable {
 		const context = await vscode.window.showQuickPick(this.configuration.contextNames);
 		if (context) {
 			await this.configuration.setCurrentContext(context);
-			await this.reloadConfig();
 		}
 	}
 
@@ -302,7 +296,7 @@ export class Dan implements vscode.Disposable {
 	makeArgumentList(str: string) {
 		const testsIndex = str.indexOf('${selectedTests}');
 		if (testsIndex !== -1) {
-			str = str.replace('${selectedTests}', this.tests.join(' '));
+			str = str.replace('${selectedTests}', this.selectedTests.join(' '));
 		}
 		let args = str2cmdline(str, {
 			workspaceFolder: this.workspaceFolder.uri.fsPath,

@@ -250,7 +250,7 @@ export class DanTestAdapter implements TestAdapter {
                 throw Error('Cannot debug a test suite');
             }
             let target: Target | undefined = undefined;
-            for (const t of this.ext.targets) {
+            for (const t of this.ext.configuration.targets) {
                 if (t.fullname === info.target) {
                     target = t;
                     break;

@@ -129,6 +129,6 @@ export async function run(ext: Dan, args?: string[]) {
 
 export async function test(ext: Dan) {
     let args = baseArgs(ext);
-    args.push(...ext.tests);
+    args.push(...ext.selectedTests);
     return channelExec('test', args, undefined, true, ext.projectRoot);
 }

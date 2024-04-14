@@ -6,6 +6,8 @@ import { Dan } from '../extension';
 import * as commands from './commands';
 import { channelExec, getLogArgs } from "./run";
 import { showQuickEnumPick, showQuickStringListPick } from './pickers';
+import { Target } from './targets';
+import { arrayCompare } from './utils';
 
 enum BuildType {
     debug = 'debug',
@@ -145,6 +147,11 @@ export class DanConfig {
     private toolchainsConfig?: ToolchainsConfig;
     private watcher: vscode.FileSystemWatcher;
     private buildFiles: vscode.Uri[] = [];
+    public configChanged = new vscode.EventEmitter<DanConfig>();
+    public targets: Target[] = [];
+    public targetsChanged = new vscode.EventEmitter<Target[]>();
+    public tests: string[] = [];
+    public testsChanged = new vscode.EventEmitter<string[]>();
 
     constructor(private readonly ext: Dan) {
         this.watcher = vscode.workspace.createFileSystemWatcher("**/dan-build.py", true, false, true);
@@ -157,6 +164,10 @@ export class DanConfig {
 
     get userConfigPath() {
         return path.join(this.ext.projectRoot, 'dan-config.py');
+    }
+
+    get executableTargets() {
+        return this.targets.filter(t => t.executable === true);
     }
 
     private buildFileChanged(f: vscode.Uri) {
@@ -172,14 +183,41 @@ export class DanConfig {
             try {
                 const data = await readAll(this.currentConfigPath);
                 this.settings = JSON.parse(data.toString()) as Settings;
-                for (const context in this.settings) {
-                    this.options[context] = await commands.codeCommand<OptionDescription[]>(this.ext, 'get-options', context);
+
+                {
+                    let promises = [];
+                    for (const context in this.settings.settings) {
+                        promises.push((async () => {
+                            this.options[context] = await commands.codeCommand<OptionDescription[]>(this.ext, 'get-options', context);
+                        })());
+                    }
+                    await Promise.all(promises);
                 }
                 if (updateContext) {
                     await this.setCurrentContext(this.settings.current_context, false);
                 }
-                const buildFiles = await commands.codeCommand<string[]>(this.ext, 'get-buildfiles', '--context', this.settings.current_context);
-                this.buildFiles = buildFiles.map((p) => vscode.Uri.file(p));
+
+                {
+                    const [buildFiles, targets, tests] = await Promise.all([
+                        commands.codeCommand<string[]>(this.ext, 'get-buildfiles', '--context', this.settings.current_context),
+                        commands.getTargets(this.ext),
+                        commands.getTests(this.ext)
+                    ]);
+
+                    this.buildFiles = buildFiles.map((p) => vscode.Uri.file(p));
+
+                    if (!arrayCompare(targets, this.targets)) {
+                        this.targets = targets;
+                        this.targetsChanged.fire(this.targets);
+                    }
+
+                    if (!arrayCompare(tests, this.tests)) {
+                        this.tests = tests;
+                        this.testsChanged.fire(this.tests);
+                    }
+                }
+
+                this.configChanged.fire(this);
             } catch (err) {
                 console.error(err);
             }
